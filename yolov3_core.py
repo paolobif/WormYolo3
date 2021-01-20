@@ -90,8 +90,8 @@ class YoloModelLatest():
                 # ignores edge images where there are no worms
                 if input_img.shape[1:3] != (608,608):
                     # adds padding to the image thats not the correct shape
-                    input_img = self.add_padding_to_square_img(input_img, 608)
-
+                    #input_img = self.add_padding_to_square_img(input_img, 608)
+                    continue
 
                 #print(key, input_img.shape)
                 #config input
@@ -147,16 +147,6 @@ class YoloModelLatest():
                 print(f"{img_i} Image: {key}, Cord: {cord} --- worms: 0")
 
         return(outputs)
-
-        @staticmethod
-        def add_padding_to_square_img(img, cut_size):
-            y_size, x_size = img.shape[:2]
-            y_pad_amount = cut_size - y_size
-            x_pad_amount = cut_size - x_size
-
-            pad_img = np.pad(img, [(0,y_pad_amount), (0,x_pad_amount), (0,0)])
-
-        return pad_img
 
 
 def pad_to_square(img, pad_value):
@@ -247,7 +237,7 @@ class CustomLoadImages:
 ##-------------------------------------------##
 
 class ImageProcessor():
-    def __init__(self, img, out_size=352, stride=352, train=False):
+    def __init__(self, img, out_size=416, stride=416, train=False):
         self.img = img
 
         self.out_size = out_size
@@ -278,6 +268,10 @@ class ImageProcessor():
             x_map = 0
             for X in range(0, xdim, stride):
                 im_slice = self.img[Y:Y+out_size, X:X+out_size]
+                # adds apdding to the image to make it the correct shape
+                if im_slice.shape[0:2] != (out_size, out_size):
+                    im_slice = add_padding_to_square_img(im_slice, out_size)
+
                 # create dictionary with key values for each slice
                 self.image_slices[(x_map, y_map)] = {'image': im_slice, 'cord': (X,Y), 'bbs':[]}
                 x_map += 1
@@ -295,6 +289,16 @@ class ImageProcessor():
             ay1, ay2 = y1 + mapY, y2 + mapY
 
             self.img_bbs.append([ax1, ay1, ax2, ay2, conf, cls_conf])
+
+    @staticmethod
+    def add_padding_to_square_img(img, cut_size):
+        y_size, x_size = img.shape[:2]
+        y_pad_amount = cut_size - y_size
+        x_pad_amount = cut_size - x_size
+
+        pad_img = np.pad(img, [(0,y_pad_amount), (0,x_pad_amount), (0,0)])
+
+        return pad_img
 
 
 def dict_to_input_lst(slice_dict):
