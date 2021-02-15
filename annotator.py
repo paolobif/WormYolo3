@@ -26,23 +26,38 @@ class YoloToCSV():
 
     def get_annotations(self):
         # pass through img processor. Image and cut size.
-        frame_obj = ImageProcessor(self.img, out_size=self.model.img_size) # can also hardcode 608
+        img_size = 416
+        frame_obj = ImageProcessor(self.img, out_size=img_size, stride=img_size) # can also hardcode 608
         input_dict = frame_obj.image_slices
         outputs = self.model.pass_model(input_dict)
+        self.outputs = outputs
         return outputs
 
     def write_to_csv(self, out_path):
-        """ Writes outputs to CSV at out_path
-        """
+        """Writes outputs to CSV at out_path"""
         img_name = os.path.basename(self.img_path)
         outputs = self.get_annotations()
         df = self.pd_for_csv(outputs, img_name)
         df.to_csv(out_path, mode='a', header=True, index=None)
         print(f"Wrote {img_name} to csv!")
 
-    @staticmethod
+    def draw_on_im(self, out_path, text=None):
+        """Takes img, then coordinates for bounding box, and optional text as arg"""
+        img = self.img
+        for output in self.outputs:
+            output = [int(n) for n in output]
+            x1, y1, x2, y2, *_ = output
+            # Draw rectangles
+            cv2.rectangle(img, (x1,y1), (x2,y2), (255,255,0), 2)
+            if text is not None:
+                cv2.putText(img, text, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, col, 2)
+        ## write image to path
+        cv2.imwrite(out_path, img)
+
     # creates pandas df for easy csv saving.
+    @staticmethod
     def pd_for_csv(outputs, img_name = "name"):
+        """Converts tensors to list that is added to pd df for easy writing to csv"""
         csv_outputs = []
         for output in outputs:
             x1, y1, x2, y2, *_ = output
@@ -56,19 +71,22 @@ class YoloToCSV():
 
 
 
+
 if __name__ == "__main__":
     # declare source directory and out path
-#    if sys.argv[0] is not None:
-#        IMG_DIR = sys.argv[0]
-#    else:
-    IMG_DIR = "./data/test_data"
+    """
+    IMG_DIR is path to the folder with the images
+    OUT_PATH is the path to the csv file you would like the output to go to
+    i.e './output/sample.csv'
+    """
+    IMG_DIR = sys.argv[1]
 
-    OUT_PATH = "./data/output/test.csv"
-
+    OUT_PATH = sys.argv[2]
 
     ## Declare settings for nn
+    ## make sure to change these prarameters for your work enviroment
     settings = {'model_def': "cfg/yolov3-spp-1cls.cfg",
-                'weights_path': "weights/last.pt",
+                'weights_path': "weights/best.pt",
                 'class_path': "416_1_4_full/classes.names",
                 'img_size': 608,
                 'iou_thres': 0.6,
@@ -80,8 +98,22 @@ if __name__ == "__main__":
 
     model = YoloModelLatest(settings)
 
-    ## test ##
-    test_im = "data/test_data/exp328_21.png"
 
-    test = YoloToCSV(model, test_im)
-    test.write_to_csv(OUT_PATH)
+    img_list = os.listdir(IMG_DIR)
+
+    for im_name in img_list:
+        img_path = os.path.join(IMG_DIR, im_name)
+        # Create object -- generates detections
+        ToCSV = YoloToCSV(model, img_path)
+        ToCSV.write_to_csv(OUT_PATH)
+
+    ## for the last img, draw bounding boxes and write image to out dir to confirm outputs are correct
+    img_out_path = os.path.join(os.path.dirname(OUT_PATH), "sample.png")
+    ToCSV.draw_on_im(img_out_path)
+
+
+    ## test ##
+    #test_im = "data/test_data/exp328_22.png"
+
+    #test = YoloToCSV(model, test_im)
+    #test.write_to_csv(OUT_PATH)
