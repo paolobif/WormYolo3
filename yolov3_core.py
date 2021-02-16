@@ -61,7 +61,7 @@ class YoloModelLatest():
 
         # Half precision
         # only cuda supported
-        model.half()
+        # model.half()
 
         classes = load_classes(self.names)
         self.model = model
@@ -84,14 +84,14 @@ class YoloModelLatest():
 
         dataset = CustomLoadImages(im, cut_size=cut_size, img_size=self.img_size) # key, image
         input_img = torch.zeros((1, 3, self.img_size, self.img_size), device=self.device)
-        _ = self.model(input_img.half())
+        _ = self.model(input_img.float())
 
         for batch_i, (key, input_img) in enumerate(dataset):
                 #print(key, input_img.shape)
                 #config input
                 #input_img = Variable(input_img.type(Tensor))
                 img = torch.from_numpy(input_img).to(self.device)
-                img = img.half()
+                img = img.float()
                 img /= 255.0
 
                 if img.ndimension() == 3:
@@ -100,7 +100,7 @@ class YoloModelLatest():
                 with torch.no_grad():
                     detections = self.model(img, augment=self.augment)[0]
                     #detections = self.model(input_img, augment=self.augment)[0]
-                    detections = detections.float()
+                    #detections = detections.float()
                     detections = non_max_suppression(detections, self.conf_thres, self.iou_thres,
                                                     multi_label=False, classes=self.classes, agnostic=True)#0.4
 
@@ -265,8 +265,8 @@ class CustomLoadImages(MapGenerator):
         img_crop = self.img[y1:y2, x1:x2]
         print(x1y1, x2y2, f"shape {img_crop.shape}")
         # add padding if the image is not sized correctly
-        if img_crop.shape[:2] != (self.cut_size, self.cut_size):
-            img_crop = self.add_padding_to_square_img(img_crop, self.cut_size)
+        #if img_crop.shape[:2] != (self.cut_size, self.cut_size):
+        #    img_crop = self.add_padding_to_square_img(img_crop, self.cut_size)
         # Upscale the image to img_zise and convert format for model.
         img = letterbox(img_crop, new_shape=self.img_size)[0]
         # Convert
