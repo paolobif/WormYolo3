@@ -22,7 +22,6 @@ from torch.autograd import Variable
 import torchvision.transforms.functional as TF
 
 
-
 ## settings is a dictionary with model parameters
 class YoloModelLatest():
     def __init__(self, settings):
@@ -68,7 +67,6 @@ class YoloModelLatest():
         self.device = device
 
         print("Model Succesfully Loaded")
-
 
     ### PASSES LIST OF FRAMES THROUGH MODEL AND RETURNS BOUNDING BOXES
     def pass_model(self, im, cut_size=416):
@@ -178,7 +176,7 @@ class MapGenerator():
         pass2 = self.map_ar(xy_shape, cut_size, (shiftx, shifty))
         pass3 = self.map_ar(xy_shape, cut_size, (shiftx, 0))
         pass4 = self.map_ar(xy_shape, cut_size, (0, shifty))
-        self.map_grids = [pass1]#, pass2, pass3, pass4]
+        self.map_grids = [pass1, pass2, pass3, pass4]
         #self.map_grids = [pass1]
 
         complete_map_grid = []
@@ -189,8 +187,7 @@ class MapGenerator():
 
         return complete_map_grid
 
-        # shiftxy can be modified when calling map_ar to create different arrangements of rectangles
-
+    # shiftxy can be modified when calling map_ar to create different arrangements of rectangles
     @staticmethod
     def map_ar(xy_shape, cut_size, shiftxy=(0,0)):
         """creates grid map for slicing - adjust shift to cover needed areas -current method
@@ -241,7 +238,6 @@ class MapGenerator():
         return(paired_corners)
 
 
-
 class CustomLoadImages(MapGenerator):
     def __init__(self, img, cut_size=416, img_size=608):
         """ Takes image array. Cut size which is the size of the slice. Img size is the
@@ -265,8 +261,8 @@ class CustomLoadImages(MapGenerator):
         img_crop = self.img[y1:y2, x1:x2]
         print(x1y1, x2y2, f"shape {img_crop.shape}")
         # add padding if the image is not sized correctly
-        #if img_crop.shape[:2] != (self.cut_size, self.cut_size):
-        #    img_crop = self.add_padding_to_square_img(img_crop, self.cut_size)
+        if img_crop.shape[:2] != (self.cut_size, self.cut_size):
+            img_crop = self.add_padding_to_square_img(img_crop, self.cut_size)
         # Upscale the image to img_zise and convert format for model.
         img = letterbox(img_crop, new_shape=self.img_size)[0]
         # Convert
@@ -288,7 +284,6 @@ class CustomLoadImages(MapGenerator):
         pad_img = np.pad(img, [(0,y_pad_amount), (0,x_pad_amount), (0,0)])
 
         return pad_img
-
 
 ##-------------------------------------------##
 
@@ -355,3 +350,60 @@ class ImageProcessor():
         pad_img = np.pad(img, [(0,y_pad_amount), (0,x_pad_amount), (0,0)])
 
         return pad_img
+
+## Following functions perform post NN processing funcitons
+def nearest_neighbor(point, centroids):
+    """ Find the nearest centroid from a point. Point is bounding box center (x, y)
+    centroids is a list of (x, y) cords of other bb centroids.
+    Returns centroid (x, y) that was nearest."""
+    point = np.array(point)
+    # Find the distance to each point and store in indexed dictionary.
+    distances = []
+    for i, centroid in enumerate(centroids):
+        centroid = np.array(centroid)
+        dist = np.linalg.norm(point-centroid)  # Calcualtes Euclidian distance between points
+        distances.append(dist)
+    # Find the min distance
+    indx = np.argmin(distances)
+    return centroids[indx]
+
+
+def calc_iou(point1, point2):
+    """ Calculates the intersection over union for two points
+    Each point is formated (x1, y1, x2, y2).
+    Returns iou value between 0-1."""
+    xA = max(point1[0], point2[0])
+    yA = max(point1[1], point2[1])
+    xB = min(point1[0], point2[0])
+    yB = min(point1[0], point2[0])
+    # Calculate intersection area
+
+def outputs_to_centroid_dict(outputs):
+    """ Takes list of outputs and calculates the centroid and returns dictionary with:
+    {centroid(x, y): list(output)}"""
+    centroids = {}
+    for output in outputs:
+        x1, y1, x2, y2, conf, cls_conf = output
+        w = (x2 - x1) / 2
+        h = (y2 - y1) / 2
+        center = ((x1 + w), (y2 + h))
+        centroids[center] = output
+    return centroids
+
+
+def filter_outputs():
+    """ Takes list of outputs and eliminates duplicates that occured due to mapping process.
+    Does so by finding closest centroid and then calculating iou. If iou is greater than
+    set threshold it will remove the bounding box from the list of outputs.
+    """
+
+
+def draw_from_output(img, outputs, col=(255,255,0), text=None):
+    """ Img is cv2.imread(img) and outputs are (x1, y1, x2, y2, conf, cls_conf)
+    Returns the image with all the boudning boxes drawn on the img """
+    for output in outputs:
+        output = [int(n) for n in output]
+        x1, y1, x2, y2, conf, cls_conf = output
+        cv2.rectangle(img, (x1,y1), (x2,y2), col, 2)
+        if text is not None:
+            cv2.putText(img, text, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, col, 2)
