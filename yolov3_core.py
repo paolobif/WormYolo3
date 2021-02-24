@@ -286,72 +286,9 @@ class CustomLoadImages(MapGenerator):
         return pad_img
 
 ##-------------------------------------------##
-
-class ImageProcessor():
-    def __init__(self, img, out_size=416, stride=416, train=False):
-        self.img = img
-
-        self.out_size = out_size
-        self.stride = stride
-        self.train = train
-
-        self.xdim = img.shape[1]
-        self.ydim = img.shape[0]
-
-        self.image_slices = defaultdict()
-        # [(x,y)] = {'image': img array, 'cord': upper (x,Y) of slice, 'bbs':list of outputs form nn}
-        self.img_bbs = []
-
-        self.cut_images()
-
-    def cut_images(self):
-        if self.train == True:
-            stride = self.stride
-        else:
-            stride = self.out_size
-
-        out_size = self.out_size
-        xdim, ydim = self.xdim, self.ydim
-        cut_images = []
-
-        y_map = 0
-        for Y in range(0, ydim, stride):
-            x_map = 0
-            for X in range(0, xdim, stride):
-                im_slice = self.img[Y:Y+out_size, X:X+out_size]
-                # adds apdding to the image to make it the correct shape
-                if im_slice.shape[0:2] != (out_size, out_size):
-                    im_slice = self.add_padding_to_square_img(im_slice, out_size)
-
-                # create dictionary with key values for each slice
-                self.image_slices[(x_map, y_map)] = {'image': im_slice, 'cord': (X,Y), 'bbs':[]}
-                x_map += 1
-            y_map += 1
-
-    def rescale_bboxes(self, outputs):
-        # output is [(key), detection]
-        image_slices = self.image_slices
-
-        for key, detection in outputs:
-            mapX, mapY = image_slices[key]['cord']
-            x1, y1, x2, y2, conf, cls_conf = detection
-
-            ax1, ax2 = x1 + mapX, x2 + mapX
-            ay1, ay2 = y1 + mapY, y2 + mapY
-
-            self.img_bbs.append([ax1, ay1, ax2, ay2, conf, cls_conf])
-
-    @staticmethod
-    def add_padding_to_square_img(img, cut_size):
-        y_size, x_size = img.shape[:2]
-        y_pad_amount = cut_size - y_size
-        x_pad_amount = cut_size - x_size
-
-        pad_img = np.pad(img, [(0,y_pad_amount), (0,x_pad_amount), (0,0)])
-
-        return pad_img
-
 ## Following functions perform post NN processing funcitons
+
+
 def nearest_neighbor(point, centroids):
     """ Find the nearest centroid from a point. Point is bounding box center (x, y)
     centroids is a list of (x, y) cords of other bb centroids.
@@ -364,25 +301,39 @@ def nearest_neighbor(point, centroids):
         dist = np.linalg.norm(point-centroid)  # Calcualtes Euclidian distance between points
         distances.append(dist)
     # Find the min distance
-    indx = np.argmin(distances)
-    return centroids[indx]
+    del distances[np.argmin(distances)]  # removes duplicate point.
+    idx = np.argmin(distances)
+
+    return centroids[idx]
 
 
 def calc_iou(point1, point2):
     """ Calculates the intersection over union for two points
     Each point is formated (x1, y1, x2, y2).
     Returns iou value between 0-1."""
-    xA = max(point1[0], point2[0])
-    yA = max(point1[1], point2[1])
-    xB = min(point1[0], point2[0])
-    yB = min(point1[0], point2[0])
+
+    xs = [point1[0], point1[2], point2[0], point2[2]]
+    ys = [point1[1], point1[3], point2[1], point2[3]]
     # Calculate intersection area
+    inter_cords = (max(xs) - min(xs), max(ys) - min(ys))  # Gets dims of the overlaped unit.
+    p1_dims = (abs(point1[0] - point1[2]), abs(point1[1] - point1[2]))  # Gets dims of p1.
+    p2_dims = (abs(point2[0] - point2[2]), abs(point2[1] - point2[2]))  # Gets dims of p2.
+    # Takes subtracts the total w and h by the overlaped unit w and h.
+    area_overlap = (p1_dims[0] + p2_dims[0] - inter_cords[0]) * (p1_dims[1] + p2_dims[1] - inter_cords[1])
+    area_union = (p1_dims[0] * p1_dims[1]) + (p2_dims[0] * p2_dims[1]) - area_overlap
+    # Number 0-1
+    iou = area_overlap / area_union
+    #assert iou <= 1, print(f"error calculating iou {iou}")
+    ###### IMPORTANT! current issue with iou formula is when boxes have 0 overlap I get numbers much larger than 1.... ######
+    return iou
+
 
 def outputs_to_centroid_dict(outputs):
     """ Takes list of outputs and calculates the centroid and returns dictionary with:
     {centroid(x, y): list(output)}"""
     centroids = {}
     for output in outputs:
+        output = [float(n) for n in output]
         x1, y1, x2, y2, conf, cls_conf = output
         w = (x2 - x1) / 2
         h = (y2 - y1) / 2
@@ -391,11 +342,28 @@ def outputs_to_centroid_dict(outputs):
     return centroids
 
 
-def filter_outputs():
+def filter_outputs(outputs, thresh=0.9):
     """ Takes list of outputs and eliminates duplicates that occured due to mapping process.
     Does so by finding closest centroid and then calculating iou. If iou is greater than
     set threshold it will remove the bounding box from the list of outputs.
     """
+    centroid_dict = outputs_to_centroid_dict(outputs)
+    centroids = list(centroid_dict.keys())
+    for point in centroids:
+        key = nearest_neighbor(point, centroids)[0:4]  # finds idx in centroids that is the nearest point.
+        pointB = centroid_dict[key][0:4]
+        pointA = centroid_dict[point][0:4]  # [0:4] isolate only x1,y1,x2,y2 from pair in dict.
+        # calculate iou between point A and B.
+        #print(pointA, pointB)
+        iou = calc_iou(pointA, pointB)
+        if iou >= thresh and iou <= 1:  # if the two boudning boxes overlap past thresh, remove the bounding box
+            del centroid_dict[point]
+            print(f"separated point {pointA} and {pointB}")
+    # Create new output list.
+    new_ouotputs = []
+    for point in list(centroid_dict.keys()):
+        new_ouotputs.append(centroid_dict[point])
+    return new_ouotputs
 
 
 def draw_from_output(img, outputs, col=(255,255,0), text=None):
