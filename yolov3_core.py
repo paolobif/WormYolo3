@@ -303,7 +303,7 @@ def nearest_neighbor(point, centroids):
     # Find the min distance
     del distances[np.argmin(distances)]  # removes duplicate point.
     idx = np.argmin(distances)
-
+    print(point, centroids[idx])
     return centroids[idx]
 
 
