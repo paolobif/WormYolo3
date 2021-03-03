@@ -289,40 +289,45 @@ class CustomLoadImages(MapGenerator):
 ## Following functions perform post NN processing funcitons
 
 
-def nearest_neighbor(point, centroids):
+def nearest_neighbor(point, centroids, thresh=20):
     """ Find the nearest centroid from a point. Point is bounding box center (x, y)
     centroids is a list of (x, y) cords of other bb centroids.
-    Returns centroid (x, y) that was nearest."""
-    point = np.array(point)
+    Returns list of centroids (x,y) that are within the thresholded distance."""
+    point_ar = np.array(point)
     # Find the distance to each point and store in indexed dictionary.
-    distances = []
+    neighbors = []
     for i, centroid in enumerate(centroids):
-        centroid = np.array(centroid)
-        dist = np.linalg.norm(point-centroid)  # Calcualtes Euclidian distance between points
-        distances.append(dist)
-    # Find the min distance
-    del distances[np.argmin(distances)]  # removes duplicate point.
-    idx = np.argmin(distances)
-    print(point, centroids[idx])
-    return centroids[idx]
+        cent = np.array(centroid)
+        dist = np.linalg.norm(point_ar-cent)  # Calcualtes Euclidian distance between points
+        if dist <= thresh:  # Filters distances to thresh nunmber of pixels.
+            neighbors.append(centroid)
+    # Make sure point isn't listed in neighbors
+    if point in neighbors:
+        neighbors.remove(point)
+
+    return neighbors
 
 
 def calc_iou(point1, point2):
     """ Calculates the intersection over union for two points
     Each point is formated (x1, y1, x2, y2).
     Returns iou value between 0-1."""
-
     xs = [point1[0], point1[2], point2[0], point2[2]]
     ys = [point1[1], point1[3], point2[1], point2[3]]
     # Calculate intersection area
     inter_cords = (max(xs) - min(xs), max(ys) - min(ys))  # Gets dims of the overlaped unit.
-    p1_dims = (abs(point1[0] - point1[2]), abs(point1[1] - point1[2]))  # Gets dims of p1.
-    p2_dims = (abs(point2[0] - point2[2]), abs(point2[1] - point2[2]))  # Gets dims of p2.
+    p1_dims = (abs(point1[0] - point1[2]), abs(point1[1] - point1[3]))  # Gets dims of p1.
+    p2_dims = (abs(point2[0] - point2[2]), abs(point2[1] - point2[3]))  # Gets dims of p2.
     # Takes subtracts the total w and h by the overlaped unit w and h.
-    area_overlap = (p1_dims[0] + p2_dims[0] - inter_cords[0]) * (p1_dims[1] + p2_dims[1] - inter_cords[1])
-    area_union = (p1_dims[0] * p1_dims[1]) + (p2_dims[0] * p2_dims[1]) - area_overlap
-    # Number 0-1
-    iou = area_overlap / area_union
+    max_w = p1_dims[0] + p2_dims[0]
+    max_h = p2_dims[1] + p2_dims[1]
+
+    if inter_cords[0] > max_w or inter_cords[1] > max_h:
+        iou = 0
+    else:
+        area_overlap = (p1_dims[0] + p2_dims[0] - inter_cords[0]) * (p1_dims[1] + p2_dims[1] - inter_cords[1])
+        area_union = (p1_dims[0] * p1_dims[1]) + (p2_dims[0] * p2_dims[1]) - area_overlap
+        iou = area_overlap / area_union  # Number 0-1
     #assert iou <= 1, print(f"error calculating iou {iou}")
     ###### IMPORTANT! current issue with iou formula is when boxes have 0 overlap I get numbers much larger than 1.... ######
     return iou
@@ -342,28 +347,35 @@ def outputs_to_centroid_dict(outputs):
     return centroids
 
 
-def filter_outputs(outputs, thresh=0.9):
+def filter_outputs(outputs, thresh=0.97):
     """ Takes list of outputs and eliminates duplicates that occured due to mapping process.
     Does so by finding closest centroid and then calculating iou. If iou is greater than
     set threshold it will remove the bounding box from the list of outputs.
     """
     centroid_dict = outputs_to_centroid_dict(outputs)
+    unique_centroids = set()
+    trash_centroids = set()
     centroids = list(centroid_dict.keys())
     for point in centroids:
-        key = nearest_neighbor(point, centroids)[0:4]  # finds idx in centroids that is the nearest point.
-        pointB = centroid_dict[key][0:4]
-        pointA = centroid_dict[point][0:4]  # [0:4] isolate only x1,y1,x2,y2 from pair in dict.
-        # calculate iou between point A and B.
-        #print(pointA, pointB)
-        iou = calc_iou(pointA, pointB)
-        if iou >= thresh and iou <= 1:  # if the two boudning boxes overlap past thresh, remove the bounding box
-            del centroid_dict[point]
-            print(f"separated point {pointA} and {pointB}")
+        neighbors = nearest_neighbor(point, centroids)  # finds list of nearest centroids that is the nearest point.
+        for neighbor in neighbors:
+            pointB = centroid_dict[neighbor][0:4]
+            pointA = centroid_dict[point][0:4]  # [0:4] isolate only x1,y1,x2,y2 from pair in dict.
+            # calculate iou between point A and B.
+            #print(pointA, pointB)
+            iou = calc_iou(pointA, pointB)
+            if iou >= thresh and iou <= 1:  # if the two boudning boxes overlap past thresh, remove the bounding box
+                trash_centroids.add(neighbor)  # Adds centroid to the trashcan so that its not duplicated.
+                #print(f"separated point {pointA} and {pointB}")
+        # Make sure there are no duplicates in unique
+        if point not in trash_centroids:
+            unique_centroids.add(point)
+
     # Create new output list.
-    new_ouotputs = []
-    for point in list(centroid_dict.keys()):
-        new_ouotputs.append(centroid_dict[point])
-    return new_ouotputs
+    new_outputs = []
+    for point in unique_centroids:
+        new_outputs.append(centroid_dict[point])
+    return new_outputs
 
 
 def draw_from_output(img, outputs, col=(255,255,0), text=None):
