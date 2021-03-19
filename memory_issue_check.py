@@ -15,7 +15,7 @@ settings = {'model_def': "cfg/yolov3-spp-1cls.cfg",
 
 model = YoloModelLatest(settings)
 ## path to test image
-dir = "data/test_data"
+dir = "C:/Users/benja/Downloads/390_aligned/390_aligned"
 img_names = os.listdir(dir)
 
 for name in img_names:
@@ -23,6 +23,9 @@ for name in img_names:
     outputs = model.pass_model(img)
     print("pre", len(outputs))
     outputs = filter_outputs(outputs, thresh=0.85)
+    outputs = non_max_suppression_post(outputs, overlapThresh=0.3)
+
+    
     print("post", len(outputs))
     draw_from_output(img, outputs, col=(255,255,0))
-    cv2.imwrite(f"output/filtered_{name}", img)
+    cv2.imwrite(f"C:/Users/benja/Downloads/390_aligned/390_aligned/outputs/filtered_{name}", img)

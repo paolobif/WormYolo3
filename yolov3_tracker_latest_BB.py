@@ -46,6 +46,36 @@ def pd_for_csv(outputs, img_name = "name"):
     out_df = out_df.set_axis(['dataCells1','dataCells2','dataCells3','dataCells4','dataCells5','dataCells6'], axis=1)
     return out_df
 
+def tensor_convert(outputs):
+    fullOutputs = []
+    for out in outputs:
+        x1, y1, x2, y2, conf, cls_conf = out
+        fullOutputs.append([x1.tolist(), y1.tolist(), x2.tolist(), y2.tolist(), conf.tolist(), cls_conf.tolist()])
+    return(fullOutputs)
+
+def pd_for_track(outputs, img_name = "name"):
+    csv_outputs = []
+    for id in tracker_output:
+        wormID = str(id)
+        x, y, *_ = tracker_output[id]
+        
+        csv_outputs.append([img_name, wormID, x.tolist(), y.tolist()]) # ideally change to list earlier bc now outputs is a mix of tensors and lists....
+    out_df = pd.DataFrame(csv_outputs)
+    return out_df
+
+def pd_for_sort_output(outputs, img_name = "name"):
+    csv_outputs = []
+    for worm in outputs:
+        worm = worm.astype(np.int32)
+        x1 = worm[0]
+        y1 = worm[1]
+        x2 = worm[2]
+        y2 = worm[3]
+        name = worm[4]
+        csv_outputs.append([img_name, name, x1, y1 ,x2, y2]) # ideally change to list earlier bc now outputs is a mix of tensors and lists....
+    out_df = pd.DataFrame(csv_outputs)
+    return out_df
+
 
 
 if __name__ == "__main__":
@@ -89,7 +119,7 @@ if __name__ == "__main__":
                 'classes': opt.classes}
 
     # number depends on which weights being used.
-    SLICE_SIZE = 480 #480 is a temp fix to solve worms not recognized towards bottom. must add padding in future. Ideal is 416
+    SLICE_SIZE = 416 #480 is a temp fix to solve worms not recognized towards bottom. must add padding in future. Ideal is 416
 
     # determine input type
     INPUT_VIDEO = bool
@@ -107,8 +137,8 @@ if __name__ == "__main__":
     # fork video out vs images out as the output currently not setup fror images to video
     OUT_VIDEO = opt.video
     if OUT_VIDEO == True:
-        if INPUT_VIDEO: out_video_path = f"{opt.out_path}/{os.path.basename(opt.data_path).strip('.avi')}_annotated.avi"
-        if not INPUT_VIDEO: out_video_path = f"{opt.out_path}/{os.path.basename(opt.data_path)}_annotated.avi"
+        if INPUT_VIDEO: out_video_path = f"{opt.out_path}/{os.path.basename(opt.data_path).strip('.avi')}_anotated.avi"
+        if not INPUT_VIDEO: out_video_path = f"{opt.out_path}/{os.path.basename(opt.data_path)}_anotated.avi"
 
         if os.path.exists(out_video_path):
             n = 1
@@ -117,7 +147,7 @@ if __name__ == "__main__":
                 n += 1
         # set up video capture and write
         fourcc = cv2.VideoWriter_fourcc(*"MJPG")
-        writer = cv2.VideoWriter(out_video_path, fourcc, 10, (1920, 1080), True) # currently set to 10fps
+        writer = cv2.VideoWriter(out_video_path, fourcc, 10, (1080, 1080), True) # currently set to 10fps
         print(f"generating video at {out_video_path}")
 
 
@@ -125,23 +155,26 @@ if __name__ == "__main__":
     Yolo = YoloModelLatest(settings)
     # init tracker. in future can impliment other trackers
     tracker = CentroidTracker() if opt.track else "none"
-    #init sort
-    mot_tracker1 = Sort() if opt.sort else "none"
+    if opt.sort == True:
+        mot_tracker1 = Sort() 
+            
 
     # start parsing and processing
     if INPUT_VIDEO == True:
         vid = cv2.VideoCapture(opt.data_path)
         total_frame_count = vid.get(cv2.CAP_PROP_FRAME_COUNT)
         video_name = os.path.basename(opt.data_path).strip('.avi')
-
+        torch.cuda.empty_cache() #BB: clear cache
+                
+        
         while (1):
             ret, frame = vid.read()
             frame_count = vid.get(cv2.CAP_PROP_POS_FRAMES)
 
             frame_obj = ImageProcessor(frame, out_size=SLICE_SIZE)
             input_dict = frame_obj.image_slices
-            
             if opt.minigpu == False: #BB: if/else statement depending on fullsize or mini GPU
+                
                 outputs = Yolo.pass_model(input_dict)
                 print(f"Frame {frame_count}/{total_frame_count}")
             else: #BB: if/else statement depending on fullsize or mini GPU
@@ -161,8 +194,6 @@ if __name__ == "__main__":
                     outputsSub = Yolo.pass_model(mini_dict) #BB: pass small dictionary thru YOLO
                     outputs.extend(outputsSub) #BB: add outputs batch to outputsFull
                     torch.cuda.empty_cache() #BB: clear cache
-                    
-            print(f"Frame {frame_count}/{total_frame_count}")
 
             if opt.csv2 == True:
                 new_name = f"frame_{int(frame_count)}"
@@ -176,10 +207,37 @@ if __name__ == "__main__":
                 cv2.imwrite(f"{opt.out_path}/frame{frame_count}_anotated.png", frame)
 
             if opt.video == True:
-                for output in outputs:
+                outputsFull = tensor_convert(outputs)
+                for output in outputsFull:
+                    output = [int(n) for n in output]
                     x1, y1, x2, y2, conf, cls_conf = output
-                    draw_on_im(frame, x1, y1, x2, y2, conf, (100,255,0), text="Worm")
-                ### tracking ###
+                    draw_on_im(frame, x1, y1, x2, y2, conf, col = (100,255,0), text="Worm")                      ### tracking ###
+                    #print(outputsFull)
+                     #print(outputsFull)
+                if opt.sort == True:
+                    #outputs.requires_grad=(True)
+                    #for output in outputs:
+                       #print(output)
+                        #output.requires_grad=(True)
+                    #boxes_xyxy = np.asarray(outputs)[:,:4]
+                    fullOutputs = np.array(outputsFull)
+                    boxes_xyxy = fullOutputs[:,:4]
+                    track_bbs_ids = mot_tracker1.update(boxes_xyxy)
+                    #print(track_bbs_ids)
+                    for worm in track_bbs_ids:
+                        worm = worm.astype(np.int32)
+                        x = worm[2]
+                        y = worm[3]
+                        name = worm[4]
+                        cv2.putText(frame, str(name), (x+15, y+10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,102,102), 2)
+                        #print(worm)
+                        #df2 = pd_for_sort(tracker_output, img_name=f"{frame_count}")                        
+                    if frame_count > 1:
+                        new_name = f"{int(frame_count)}"
+                        df2 = pd_for_sort_output(track_bbs_ids, img_name=f"{frame_count}")
+                        df2.to_csv(f"{opt.out_path}/{video_name}_sort.csv", mode='a', header=False, index=None) 
+                        
+                        
                 if opt.track == True:
                     tracker_input = np.asarray(outputs)[:,:4]
                     tracker_output = tracker.update(tracker_input)
@@ -188,38 +246,29 @@ if __name__ == "__main__":
                     else:
                         for id in tracker_output:
                             print(id)
+                            
                             x, y = tracker_output[id]
                             cv2.putText(frame, str(id), (x+15, y+10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,102,102), 2)
-                if opt.sort == True:
-                    fullOutputs = np.array(outputsFull)
-                    boxes_xyxy = fullOutputs[:,:4]
-                    track_bbs_ids = mot_tracker1.update(boxes_xyxy)
-                    for worm in track_bbs_ids:
-                        worm = worm.astype(np.int32)
-                        x = worm[2]
-                        y = worm[3]
-                        name = worm[4]
-                        cv2.putText(frame, str(name), (x+15, y+10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,102,102), 2)                     
-                    if frame_count > 1:
                         new_name = f"{int(frame_count)}"
-                        df2 = pd_for_sort_output(track_bbs_ids, img_name=f"{frame_count}")
-                        df2.to_csv(f"{opt.out_path}/{video_name}_sort.csv", mode='a', header=False, index=None)             
+                        df2 = pd_for_track(tracker_output, img_name=f"{new_name}")
+                        df2.to_csv(f"{opt.out_path}/{video_name}_track.csv", mode='a', header=False, index=None)
                 writer.write(frame)
 
     elif INPUT_VIDEO == False:
         start_time = time.time()
         file_names = sorted(os.listdir(opt.data_path))
         head_name = os.path.basename(opt.data_path)
-
+        frame_count = 0
         if opt.retro: file_names.reverse()
 
         for i, file_name in enumerate(file_names):
+            frame_count += 1
             print(file_name)
             frame = cv2.imread(f"{opt.data_path}/{file_name}")
             frame_obj = ImageProcessor(frame, out_size=SLICE_SIZE)
             input_dict = frame_obj.image_slices
-            
             if opt.minigpu == False: #BB: if/else statement depending on fullsize or mini GPU
+                
                 outputs = Yolo.pass_model(input_dict)
                 print(f"Frame {frame_count}/{total_frame_count}")
             else: #BB: if/else statement depending on fullsize or mini GPU
@@ -238,7 +287,7 @@ if __name__ == "__main__":
                     mini_dict = {k: input_dict[k] for k in mini_list} #BB: create smaller dictionary
                     outputsSub = Yolo.pass_model(mini_dict) #BB: pass small dictionary thru YOLO
                     outputs.extend(outputsSub) #BB: add outputs batch to outputsFull
-                    torch.cuda.empty_cache() #BB: clear cache            print(f"\t Image: {i}/{len(file_names)}")
+                    torch.cuda.empty_cache() #BB: clear cache
 
             if opt.csv == True:
                 raw_name, extension = file_name.split(".")
@@ -271,10 +320,35 @@ if __name__ == "__main__":
                 cv2.imwrite(f"{opt.out_path}/{file_name}_anotated.png", frame)
 
             if opt.video == True:
-                for output in outputs:
+                outputsFull = tensor_convert(outputs)
+                for output in outputsFull:
+                    output = [int(n) for n in output]
                     x1, y1, x2, y2, conf, cls_conf = output
-                    draw_on_im(frame, x1, y1, x2, y2, conf, (100,255,0), text="Worm")
-                ### tracking ###
+                    draw_on_im(frame, x1, y1, x2, y2, conf, col = (100,255,0), text="Worm")                       ### tracking ###
+                    #print(outputsFull)
+                if opt.sort == True:
+                    #outputs.requires_grad=(True)
+                    #for output in outputs:
+                       #print(output)
+                        #output.requires_grad=(True)
+                    #boxes_xyxy = np.asarray(outputs)[:,:4]
+                    fullOutputs = np.array(outputsFull)
+                    boxes_xyxy = fullOutputs[:,:4]
+
+                    track_bbs_ids = mot_tracker1.update(boxes_xyxy)
+                    #print(track_bbs_ids)
+                    for worm in track_bbs_ids:
+                        worm = worm.astype(np.int32)
+                        x = worm[2]
+                        y = worm[3]
+                        name = worm[4]
+                        cv2.putText(frame, str(name), (x+15, y+10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,102,102), 2)
+                    
+                    if frame_count > 1:
+                        #new_name = f"{int(frame_count)}"
+                        df2 = pd_for_sort_output(track_bbs_ids, img_name=f"{frame_count}")
+                        df2.to_csv(f"{opt.out_path}/{head_name}_sort.csv", mode='a', header=False, index=None)
+                        
                 if opt.track == True:
                     tracker_input = np.asarray(outputs)[:,:4]
                     tracker_output = tracker.update(tracker_input)
@@ -283,23 +357,12 @@ if __name__ == "__main__":
                     else:
                         for id in tracker_output:
                             print(id)
+                            
                             x, y = tracker_output[id]
                             cv2.putText(frame, str(id), (x+15, y+10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,102,102), 2)
-                if opt.sort == True:
-                    fullOutputs = np.array(outputsFull)
-                    boxes_xyxy = fullOutputs[:,:4]
-                    track_bbs_ids = mot_tracker1.update(boxes_xyxy)
-                    for worm in track_bbs_ids:
-                        worm = worm.astype(np.int32)
-                        x = worm[2]
-                        y = worm[3]
-                        name = worm[4]
-                        cv2.putText(frame, str(name), (x+15, y+10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,102,102), 2)                     
-                    if frame_count > 1:
-                        new_name = f"{int(frame_count)}"
-                        df2 = pd_for_sort_output(track_bbs_ids, img_name=f"{frame_count}")
-                        df2.to_csv(f"{opt.out_path}/{video_name}_sort.csv", mode='a', header=False, index=None)             
-                ### tracking ###
+                        #new_name = f"{int(frame_count)}"
+                        df2 = pd_for_track(tracker_output, img_name=f"{file_name}")
+                        df2.to_csv(f"{opt.out_path}/{head_name}_track.csv", mode='a', header=False, index=None)
                 writer.write(frame)
 
         finish_time = time.time()

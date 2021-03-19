@@ -115,7 +115,7 @@ class YoloModelLatest():
             img_shape = (cut_size, cut_size)
             # if detections exist in image.
             if detections is not None:
-                print(f"{img_i} Slice: {img_i}, Cord: {key} --- worms: {len(detections)}")
+                #print(f"{img_i} Slice: {img_i}, Cord: {key} --- worms: {len(detections)}")
                 ## rescales boxes from upscaled size down to original img_shape
                 detections = rescale_boxes(detections, self.img_size, img_shape)
                 #unique_labels = detections[:, -1].cpu().unique()
@@ -125,8 +125,8 @@ class YoloModelLatest():
                     raw_output = (x1, y1, x2, y2, conf, cls_conf)
                     output = self.rescale_bboxes(key, raw_output)
                     outputs.append(output)
-            else:
-                print(f"{img_i} Image: {key} --- worms: 0")
+            #else:
+                #print(f"{img_i} Image: {key} --- worms: 0")
         return(outputs)
         #return(outputs)
 
@@ -259,7 +259,7 @@ class CustomLoadImages(MapGenerator):
         x1, y1 = x1y1
         x2, y2 = x2y2
         img_crop = self.img[y1:y2, x1:x2]
-        print(x1y1, x2y2, f"shape {img_crop.shape}")
+        #print(x1y1, x2y2, f"shape {img_crop.shape}")
         # add padding if the image is not sized correctly
         if img_crop.shape[:2] != (self.cut_size, self.cut_size):
             img_crop = self.add_padding_to_square_img(img_crop, self.cut_size)
