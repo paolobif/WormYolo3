@@ -18,7 +18,7 @@ if __name__ == "__main__":
     """
     IMG_DIR is path to the folder with the images
     OUT_PATH is the path to the csv file you would like the output to go to
-        i.e './output/sample.csv'
+    i.e './output/sample.csv'
     """
     csv_PATH = sys.argv[1]
 
@@ -38,9 +38,9 @@ if __name__ == "__main__":
     #initialize tracker
     mot_tracker1 = Sort() 
     csv_outputs = []
-    for x in reversed(unique):
+    for x in unique:
         frame = int(x)
-        print(frame)
+        #print(frame)
         filtval = df['frame'] == x
         boxes_xyxy = np.asarray(df[filtval])[:,1:5]
         
@@ -48,6 +48,8 @@ if __name__ == "__main__":
         for output in track_bbs_ids:
             x1, y1, x2, y2, wrmid, *_ = output
             csv_outputs.append([x.tolist(), x1.tolist(), y1.tolist(), x2.tolist(), y2.tolist(),wrmid.tolist()])
+    print(video_name)
+    print("done")
     pd.DataFrame(csv_outputs).to_csv(OUT_PATH, mode='a', header=False, index=None)
         
         

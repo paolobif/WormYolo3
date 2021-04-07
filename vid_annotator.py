@@ -32,7 +32,9 @@ class YoloToCSV():
         img_size = 416
         outputs = self.model.pass_model(self.img)
         self.outputs = outputs
-        outputs = non_max_suppression_post(outputs, overlapThresh=0.1)
+        if outputs:
+            #print(outputs)
+            outputs = non_max_suppression_post(outputs, overlapThresh=0.1)
         return outputs
 
     def write_to_csv(self, out_path):
@@ -112,9 +114,9 @@ if __name__ == "__main__":
                 'weights_path': "weights/416_1_4_full_best200ep.pt",
                 'class_path': "cfg/classes.names",
                 'img_size': 608,
-                'iou_thres': 0.6,
+                'iou_thres': 0.4,
                 'no_gpu': True,
-                'conf_thres': 0.3,
+                'conf_thres': 0.1,
                 'batch_size': 6,
                 'augment': None,
                 'classes': None}
@@ -154,7 +156,7 @@ if __name__ == "__main__":
         #    break
         #img_out_path = os.path.join(VID_PATH, im_name)
         #ToCSV.draw_on_im(img_out_path)
-writer.release()        
+    writer.release()        
     #for im_name in img_list:
         #img_path = os.path.join(IMG_DIR, im_name)
         ## Create object -- generates detections

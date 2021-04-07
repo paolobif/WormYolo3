@@ -35,18 +35,23 @@ if __name__ == "__main__":
     while (1):
         ret, frame = vid.read()
         frame_count = vid.get(cv2.CAP_PROP_POS_FRAMES)
-        img_out_path =  f"{os.path.join(OUT_PATH, video_name)}_{int(frame_count)}.png"
-        check = random.randint(1,100)
-        if check == 1:
-            
+        img_out_path =  f"{os.path.join(OUT_PATH, video_name)}_{int(frame_count)}_NN.png"
+        
+        if frame_count < (total_frame_count*.25):
+            check = random.randint(1,50)
+        elif frame_count < (total_frame_count*.75) and frame_count > (total_frame_count*.25):
+            check = random.randint(1,20)
+        else:
+            check = random.randint(1,15)
+        if check == 1:            
             cv2.imwrite(img_out_path, frame)
             frame_cur = int(frame_count)
             print(frame_cur)
-            filtval = df['frame'] == str(frame_cur)
+            filtval = df['frame'] == str(frame_cur) #add +1 to frame_cur if using video from retrograde
             csv_outputs = np.asarray(df[filtval])[:,:]
             out_df = pd.DataFrame(csv_outputs)
             # change header to datacells for R-shiny processing
-            out_df = out_df.set_axis( ['dataCells1','dataCells2','dataCells3','dataCells4','dataCells5','class'] , axis=1)
+            out_df = out_df.set_axis( ['dataCells1','dataCells2','dataCells3','dataCells4','dataCells5','dataCells6'] , axis=1)
             csv_out_path = f"{os.path.join(OUT_PATHcsv, video_name)}_{int(frame_count)}_NN.csv"
             out_df.to_csv(csv_out_path, mode='w', header=True, index=None)
 
