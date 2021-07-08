@@ -7,9 +7,10 @@ import pandas as pd
 import random
 import numpy as np
 import time
-from skimage.morphology import skeletonize, medial_axis
-from matplotlib import pyplot as plt
-from re import sub
+import fnmatch
+#from skimage.morphology import skeletonize, medial_axis
+#from matplotlib import pyplot as plt
+#from re import sub
 
 
 def bb_intersection_over_union(boxA, boxB):
@@ -65,14 +66,14 @@ def analyzeSORT(df,threshold):
                     deadcount += 1
                     #print(deadcount)
                 #print(fill)
-                if deadcount > 15:
+                if deadcount > 7:
                     catagoryA = 'dead'
                    # print(deadcount)
-                if deadcount == 16:
+                if deadcount == 8:
                     if deadboxes == []:
                         deathspots.append([frameNA, x1A, y1A, x2A, y2A])     
                         deadboxes.append([x1A, y1A, x2A, y2A])  
-                        csv_outputs.append((frameNA/144)+2)
+                        csv_outputs.append((frameNA/24)+7)
                     else:
                         notunique = 0
                         for box in deadboxes:
@@ -85,7 +86,7 @@ def analyzeSORT(df,threshold):
                         if notunique == 0:
                             deathspots.append([frameNA, x1A, y1A, x2A, y2A])  
                             deadboxes.append([x1A, y1A, x2A, y2A])               
-                            csv_outputs.append((frameNA/144)+2)
+                            csv_outputs.append((frameNA/24)+7)
 
                     #print(deathtime)
                     #print(frameNA)
@@ -93,12 +94,12 @@ def analyzeSORT(df,threshold):
                 #interimD.append(newRow)
             frameNB, x1B, y1B, x2B, y2B,labelB, deltaB, catagoryB, *_ = row
             fill +=1
-            if deadcount == 16:
+            if deadcount == 8:
                 break
 
     csv_outputs = pd.DataFrame(csv_outputs, columns = ['#desc'])
     csv_outputs['neural'] = '1'
-    return(csv_outputs)
+    return(deathspots)
 
 
 
@@ -123,39 +124,55 @@ if __name__ == "__main__":
     i.e './output/sample.csv'
     """
     SORT_DIR = sys.argv[1]
-    #WORMLIST_DIR = sys.argv[2]
-    OUT_PATH = sys.argv[2]
+    VID_DIR = sys.argv[2]
+    OUT_PATH = sys.argv[3]
     
     
-    csv_list = os.listdir(SORT_DIR)
-    #allN2csv = []
-    #worm_list = os.listdir(WORMLIST_DIR)
-    for csv_name in csv_list:
-        expname = sub(".csv","",csv_name)
-        wormlist_name ="wormlist_" + expname + ".csv"
-        
-        csv_path = os.path.join(SORT_DIR, csv_name)
+    
+    vid_list = fnmatch.filter(os.listdir(VID_DIR),"*.avi")
+ 
+    for vid_name in vid_list:
+        videoPath = VID_DIR+vid_name
+        print(videoPath)
+        vid = cv2.VideoCapture(videoPath)
+        csv_path = f"{SORT_DIR}/{os.path.basename(vid_name).strip('_yolo.avi')}.csv"
+        print(csv_path)
+        print(vid_name)
+        total_frame_count = vid.get(cv2.CAP_PROP_FRAME_COUNT)
+        out_video_path = f"{OUT_PATH}/{os.path.basename(vid_name).strip('.avi')}_death.avi"
+        #csv_path = os.path.join(SORT_DIR, csv_name)
         df = pd.read_csv(csv_path,names=('frame', 'x1', 'y1', 'x2', 'y2','label','delta'))
         df['catagory'] = 'alive'
-
-        outputs = analyzeSORT(df,threshold = 75)
-        outputs.loc[0] = ['#expID',expname]
-        out_name = expname + "_AD.csv"
-        out_csv_path = os.path.join(OUT_PATH, out_name)
-        pd.DataFrame(outputs).to_csv(out_csv_path, mode='w', header=True, index=None)
         
+        while (1):
+            ret, frame = vid.read()
+            frame_count = vid.get(cv2.CAP_PROP_POS_FRAMES)
+            #print(frame_count)
+            if frame_count == 1:
+                
+                height, width, channels = frame.shape
+                #print(height, width)
+                fourcc = cv2.VideoWriter_fourcc(*"MJPG")
+                writer = cv2.VideoWriter(out_video_path, fourcc, 10, (width, height), True)
+            deathspots = analyzeSORT(df,threshold = 24)
 
-        #csv_path = os.path.join(WORMLIST_DIR, wormlist_name)
-        #wldf = pd.read_csv(csv_path,names=('x1','y1','#desc', 'label','agedays','unix')) 
-        #wldf = wldf[['#desc']]
-        #wldf = wldf.div(72)
-        #wldf = wldf.add(2)
+            for death in deathspots:
+                #print(death)
+                frameNA, x1, y1, x2, y2, *_ = death  
+                frameNA = int(frameNA)
+                if frame_count > frameNA:
+                    x1 = int(x1)
+                    x2 = int(x2)
+                    y1 = int(y1)
+                    y2 = int(y2)
+                    cv2.rectangle(frame, (x1,y1), (x2,y2), (0,255,255), 2)
 
-        #wldf['manual'] = '1'
-        #wldf.loc[0] = ['#expID',expname]
-        #pd.DataFrame(wldf).to_csv(out_csv_path, mode='a', header=True, index=None)
-        
-        #allN2csv.append
+            writer.write(frame)
+            if frame_count == total_frame_count:
+                break
+        writer.release() 
+        print(out_video_path)
+
         
     
         

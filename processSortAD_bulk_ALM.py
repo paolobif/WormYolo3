@@ -65,14 +65,14 @@ def analyzeSORT(df,threshold):
                     deadcount += 1
                     #print(deadcount)
                 #print(fill)
-                if deadcount > 15:
+                if deadcount > 7:
                     catagoryA = 'dead'
                    # print(deadcount)
-                if deadcount == 16:
+                if deadcount == 8:
                     if deadboxes == []:
                         deathspots.append([frameNA, x1A, y1A, x2A, y2A])     
                         deadboxes.append([x1A, y1A, x2A, y2A])  
-                        csv_outputs.append((frameNA/144)+2)
+                        csv_outputs.append((frameNA/12)+7)
                     else:
                         notunique = 0
                         for box in deadboxes:
@@ -85,7 +85,7 @@ def analyzeSORT(df,threshold):
                         if notunique == 0:
                             deathspots.append([frameNA, x1A, y1A, x2A, y2A])  
                             deadboxes.append([x1A, y1A, x2A, y2A])               
-                            csv_outputs.append((frameNA/144)+2)
+                            csv_outputs.append((frameNA/12)+7)
 
                     #print(deathtime)
                     #print(frameNA)
@@ -93,7 +93,7 @@ def analyzeSORT(df,threshold):
                 #interimD.append(newRow)
             frameNB, x1B, y1B, x2B, y2B,labelB, deltaB, catagoryB, *_ = row
             fill +=1
-            if deadcount == 16:
+            if deadcount == 8:
                 break
 
     csv_outputs = pd.DataFrame(csv_outputs, columns = ['#desc'])
@@ -138,7 +138,7 @@ if __name__ == "__main__":
         df = pd.read_csv(csv_path,names=('frame', 'x1', 'y1', 'x2', 'y2','label','delta'))
         df['catagory'] = 'alive'
 
-        outputs = analyzeSORT(df,threshold = 75)
+        outputs = analyzeSORT(df,threshold = 24 )
         outputs.loc[0] = ['#expID',expname]
         out_name = expname + "_AD.csv"
         out_csv_path = os.path.join(OUT_PATH, out_name)
