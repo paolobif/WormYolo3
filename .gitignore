@@ -22,7 +22,7 @@
 
 *.cfg
 !cfg/yolov3*.cfg
-
+BB_env/*
 storage.googleapis.com
 runs/*
 data/*
