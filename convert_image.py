@@ -1,0 +1,401 @@
+try:
+  from matplotlib import pyplot as plt
+  from matplotlib import patches
+  GRAPHING = True
+except:
+  GRAPHING = False
+
+from matplotlib.pyplot import draw
+import numpy as np
+import cv2
+
+import time as t
+import sys
+
+import skeleton_cleaner as sc
+
+
+DENSITY_SEARCH = 2
+SEARCH_DELTA = 1.5
+SKELETON_DELTA = 1
+ANGLE_NUM = 8
+
+def imageToMatrices(image_path):
+  """
+  Turns a highlighted image of a worm into two matrices
+
+  image_path: The highlighted image of the worm
+
+  grayscale_matrix: The original version of the image
+  class_matrix: The matrix separating 'Not Worm' from 'Worm'
+  """
+  img = cv2.imread(image_path)
+  height, width, colors = img.shape
+  grayscale_matrix = np.zeros((height, width))
+  class_matrix = np.zeros((height, width))
+
+  for y in range(height):
+    for x in range(width):
+      rgb_values = img[y,x]
+      if (np.all(rgb_values == rgb_values[0])):
+        grayscale_matrix[y,x] = rgb_values[0]
+        class_matrix[y,x] = -1
+      else:
+        grayscale_matrix[y,x] = min(rgb_values)
+        class_matrix[y,x] = 1
+
+
+
+  return grayscale_matrix, class_matrix
+
+def getWormMatrices(image_path):
+  """
+  Turns a highlighted image into it's grayscale and matrices that represent each individual worm.
+
+  image_path: The highlighted image of the worm
+  grayscale_matrix: The original version of the image
+  worm_dict: The dictionary containg each matrix separating 'Not this worm' from 'This worm'
+  """
+  worm_dict = {}
+  img = cv2.imread(image_path)
+  height, width, colors = img.shape
+  grayscale_matrix = np.zeros((height, width))
+
+  for y in range(height):
+    for x in range(width):
+      rgb_values = img[y,x]
+      grayscale_matrix[y,x] = np.min(rgb_values)
+      if not (np.all(rgb_values == rgb_values[0])):
+        grayscale_matrix[y,x] = np.min(rgb_values)*2
+        rgb_values = 10*round((int(rgb_values[0])-int(rgb_values[1]))/10)
+        if rgb_values in worm_dict:
+          worm_dict[rgb_values][y,x] = 1
+        else:
+          worm_dict[rgb_values] = np.zeros((height,width))
+          worm_dict[rgb_values][y,x] = 1
+  return worm_dict, grayscale_matrix
+
+def getArea(worm_matrix, grayscale_matrix=None, worm_path=None):
+  """
+  Calculates the amount of the image that is worm
+  """
+  area=0
+  for row in worm_matrix:
+    for column in row:
+      if column==1:
+        area+=1
+  return area
+
+def getAverageShade(worm_matrix, grayscale_matrix, worm_path=None):
+  """
+  Calculates the average shade of the pixels that are worm
+  """
+  height, width = worm_matrix.shape
+  endArray=[]
+  for y in range(height):
+    for x in range(width):
+      if worm_matrix[y,x]==1:
+        endArray.append(grayscale_matrix[y,x])
+  return np.mean(endArray)
+
+def findFront(worm_matrix):
+  """
+  Identifies the pixel of the worm that is around as little of the worm as possible
+  """
+  height, width = worm_matrix.shape
+  pixel_dense = {}
+  for y in range(height):
+    for x in range(width):
+      if worm_matrix[y,x]:
+        pixel_dense[(y,x)] = wormNearPixel(worm_matrix,y,x)
+  return min(pixel_dense,key = pixel_dense.get)
+
+def wormNearPixel(worm_matrix, y, x):
+  """
+  Determines how many pixels near the given x and y are worm
+  """
+  height, width = worm_matrix.shape
+  sumV = 0
+  for i in range(round(y) - DENSITY_SEARCH, round(y) + DENSITY_SEARCH + 1):
+    for j in range(round(x) - DENSITY_SEARCH, round(x) + DENSITY_SEARCH + 1):
+      if (i >= 0 and i < height and j >= 0 and j < width):
+        sumV += worm_matrix[i, j]
+  return sumV
+
+def moveAlongAngle(x, y, angle, distance):
+  """
+  Moves from (x,y) a distance at given angle.
+  """
+  return moveAlongAxis(x, y, np.sin(angle), np.cos(angle), distance)
+
+def moveAlongAxis(x, y, xSlope, ySlope, distance):
+  """
+  Moves from (x,y) at a slope of xSlope/ySlope by the given distance
+  """
+  newX = x + xSlope/np.sqrt(xSlope**2+ySlope**2)*distance
+  newY = y + ySlope/np.sqrt(xSlope**2+ySlope**2)*distance
+  return (newX, newY)
+
+def findAngle(x, y, worm_matrix):
+  """
+  Finds the line that goes through the least worm possible drawn through point (x,y)
+  """
+  angleList = np.arange(0,np.pi,np.pi/ANGLE_NUM)
+  angle_dict = {}
+  for angle in angleList:
+    sumV = 0
+    distance = SEARCH_DELTA
+    coord = moveAlongAngle(x,y,angle,distance)
+    while getValue(coord, worm_matrix):
+      distance+=SEARCH_DELTA
+      coord = moveAlongAngle(x,y,angle,distance)
+    sumV += distance
+
+    distance = SEARCH_DELTA
+    coord = moveAlongAngle(x,y,angle-np.pi,distance)
+    while getValue(coord, worm_matrix):
+      distance+=SEARCH_DELTA
+      coord = moveAlongAngle(x,y,angle-np.pi,distance)
+    sumV += distance
+
+    angle_dict[angle] = sumV
+
+
+  return(min(angle_dict, key=angle_dict.get))
+
+def createSkeleton(start_coord, worm_matrix):
+  """
+  Creates a general middle line through the worm.
+  This is done by finding the line through the least of the worm and moving perpendicular to that.
+  This was discarded due to bad results on low quality images
+
+  start_coord: The point of the worm where to start
+  worm_matrix: The matrix determining what is/is not worm
+  """
+  point_list = [start_coord]
+  cur_coord = start_coord
+
+  ortho_angle = findAngle(cur_coord[0], cur_coord[1], worm_matrix)
+  coord1 = moveAlongAngle(cur_coord[0], cur_coord[1], ortho_angle + np.pi/2, 1)
+
+  # Determine which path takes us towards the worm
+  if getValue(coord1, worm_matrix):
+    prev_angle = ortho_angle + np.pi/2
+  else:
+    prev_angle = ortho_angle - np.pi/2
+
+
+  while getValue(cur_coord, worm_matrix):
+    ortho_angle = findAngle(cur_coord[0], cur_coord[1], worm_matrix)
+    if abs(ortho_angle + np.pi/2 - prev_angle) < abs(ortho_angle - np.pi/2 - prev_angle):
+      cur_coord = moveAlongAngle(cur_coord[0], cur_coord[1], ortho_angle + np.pi/2, SKELETON_DELTA)
+    else:
+      cur_coord = moveAlongAngle(cur_coord[0], cur_coord[1], ortho_angle - np.pi/2, SKELETON_DELTA)
+    point_list.append(cur_coord)
+  return point_list
+
+def pointDistance(coord1, coord2):
+  """
+  Determines the euclidean distance between (x,y) of coord1 and (x,y) of coord2
+  """
+  return np.sqrt((coord1[0] - coord2[0])**2 + (coord1[1] - coord2[1])**2)
+
+def createMiddleSkeleton(start_coord, worm_matrix):
+  """
+  Creates a skeleton generally through the middle.
+  This is done by finding the angle that aims toward as much worm as possible.
+
+  start_coord: The point of the worm where to start
+  worm_matrix: The matrix determining what is/is not worm
+
+  point_list: The list of points in form (x,y) that form the middle line.
+  """
+  point_list = [start_coord]
+  cur_coord = start_coord
+
+  ortho_angle = findAngle(cur_coord[0], cur_coord[1], worm_matrix)
+  coord1 = moveAlongAngle(cur_coord[0], cur_coord[1], ortho_angle + np.pi/2, SKELETON_DELTA)
+
+
+  # Determine which path takes us towards the worm
+  if getValue(coord1, worm_matrix):
+    prev_angle = ortho_angle + np.pi/2
+  else:
+    prev_angle = ortho_angle - np.pi/2
+
+  while getValue(cur_coord, worm_matrix):
+    towards_angle = getAngleMax(cur_coord, prev_angle, worm_matrix)
+    cur_coord = moveAlongAngle(cur_coord[0], cur_coord[1], towards_angle, SKELETON_DELTA)
+    prev_angle = towards_angle
+    if checkClosePoint(cur_coord,point_list):
+      break
+    point_list.append(cur_coord)
+
+  return point_list
+
+def checkClosePoint(coord,point_list):
+  """
+  Checks whether a coordinate is too close to any of the points in point_list
+  """
+  for point in point_list:
+    if pointDistance(coord, point) < SKELETON_DELTA/2:
+      return True
+  return False
+
+def getAngleMax(coord, prev_angle, worm_matrix):
+  """
+  Finds the angle that leads toward as much worm as possible.
+  coord: The coord we are moving away from
+  prev_angle: The previous angle, limits the possibilities to 45 degrees in either direction.
+  worm_matrix: The matrix that determines what is and isn't worm
+
+  cur_angle: The angle that points toward as much worm as possible.
+  """
+  # Look 90 degrees around previous angle
+  angleList = np.arange(prev_angle-np.pi/4,np.pi/4+prev_angle+np.pi/ANGLE_NUM,np.pi/ANGLE_NUM)
+  angle_dict = {}
+  for angle in angleList:
+    coordNew = moveAlongAngle(coord[0],coord[1],angle, SEARCH_DELTA)
+    if getValue(coordNew, worm_matrix):
+      angle_dict[angle] = wormNearPixel(worm_matrix, coordNew[1],coordNew[0])
+  try:
+    max_size = angle_dict[max(angle_dict, key=angle_dict.get)]
+    cur_angle = max(angle_dict, key=angle_dict.get)
+  except:
+    cur_angle=prev_angle
+  for angle in angle_dict:
+    if angle_dict[angle] == max_size:
+      if abs(prev_angle - cur_angle) > abs(prev_angle - angle):
+        cur_angle = angle
+  return cur_angle
+
+def getValue(coord, worm_matrix):
+  """
+  Gets the shade of worm at (x,y)
+  """
+  return worm_matrix[round(coord[1]),round(coord[0])]
+
+def makeImg(data):
+  """
+  Turns a grayscale matrix into a [r,g,b] matrix
+  """
+  width, height = np.shape(data)
+  returnMatrix = np.zeros((width, height, 3), int)
+  for i in range(width):
+    for j in range(height):
+      curVal = data[i,j]
+      for k in range(3):
+        returnMatrix[i, j, k] = curVal
+  return returnMatrix
+
+def findCenterWorm(worm_dict):
+  """
+  Finds the worm that is nearest the middle
+
+  worm_dict: The dictionary describing which worms are where on the image.
+  """
+  dist_dict = {}
+  for key in worm_dict:
+    cur_worm = worm_dict[key]
+
+
+    radius = 0
+    while not checkRadius(cur_worm, radius):
+      radius+=1
+      if radius > cur_worm.shape[0] and radius > cur_worm.shape[1]:
+        break
+
+    dist_dict[radius] = key
+  return worm_dict[dist_dict[min(dist_dict)]]
+
+def checkRadius(worm_matrix, radius):
+  """
+  Looks in the circumference given radius to see if any of the pixels are 'worm'.
+  """
+  height, width = worm_matrix.shape
+  midy, midx = height/2, width/2
+  cosV = np.arange(0,2*np.pi, 0.1)
+  for item in cosV:
+    x = int(midx+np.round(radius*np.cos(item)))
+    y = int(midy+np.round(radius*np.sin(item)))
+    try:
+      if worm_matrix[y, x] == 1:
+        return True
+    except:
+      pass
+  return False
+
+def createHighlight(worm_matrix, grayscale_matrix):
+  """
+  Creates a highlighted [r,g,b] image of a worm
+  worm_matrix: The matrix determining worm from not worm
+  grayscale_matrix: The grayscale version of the image
+  """
+  width, height = np.shape(grayscale_matrix)
+  returnMatrix = np.zeros((width, height, 3), int)
+  for i in range(width):
+    for j in range(height):
+      curVal = grayscale_matrix[i,j]
+      for k in range(3):
+        returnMatrix[i, j, k] = curVal
+      if worm_matrix[i,j] == 1:
+        returnMatrix[i, j, 0] = returnMatrix[i, j, 0] + 50
+  return returnMatrix
+
+def makeSkelImg(worm_matrix, grayscale_matrix, point_list):
+  rgb = createHighlight(worm_matrix,grayscale_matrix)
+  for point in point_list:
+    rgb[round(point[1])][round(point[0])][1] += 100
+  return rgb
+
+def makeSkelLines(worm_matrix, grayscale_matrix, point_list):
+  rgb = createHighlight(worm_matrix,grayscale_matrix)
+  for i in range(len(point_list)-1):
+    point1 = point_list[i]
+    point2 = point_list[i+1]
+    xSlope = -(point1[0]-point2[0])
+    ySlope = -(point1[1]-point2[1])
+    draw_on = point_list[i]
+    distance = 1
+
+    while not (round(draw_on[0]) == round(point2[0]) and round(draw_on[1]) == round(point2[1])):
+      draw_on = moveAlongAxis(point1[0],point1[1],xSlope,ySlope,distance)
+      rgb[round(draw_on[1])][round(draw_on[0])][1] += 100
+
+      distance+=0.01
+
+  return rgb
+
+
+if __name__ == "__main__":
+  worm_dict, grayscale_matrix = getWormMatrices("C:/Users/cdkte/Downloads/worm_segmentation/Anno_5240/Annotated_344_695_5240.0_x1y1x2y2_1002_145_1045_177.png")
+
+  selectWorm = findCenterWorm(worm_dict)
+
+  #print(getArea(selectWorm))
+  #print(getAverageShade(selectWorm,grayscale_matrix))
+  wormFront = findFront(selectWorm)
+  skelList = createMiddleSkeleton((wormFront[1],wormFront[0]),selectWorm)
+  shortenSkel = sc.make_clusters(skelList)
+  plt.imshow(makeSkelLines(selectWorm, grayscale_matrix, shortenSkel))
+  i=0
+  for item in skelList:
+    plt.plot(item[0],item[1],'bo',markersize=3)
+    i+=1
+  for item in shortenSkel:
+    plt.plot(item[0],item[1],'bo',markersize=9)
+    i+=1
+  '''
+  plt.imshow(selectWorm)
+  plt.plot(wormFront[1], wormFront[0],'bo')
+  #print(moveAlongAngle(17,18,np.pi/4,1))
+  #print(findAngle(wormFront[1], wormFront[0],selectWorm))
+  skelList = createMiddleSkeleton((wormFront[1],wormFront[0]),selectWorm)
+  #skelList = createSkeleton((wormFront[1],wormFront[0]),selectWorm)
+  i=1
+  for item in skelList:
+    plt.plot(item[0],item[1],'bo',markersize=i)
+    #i-=1
+  '''
+  plt.show()
+
