@@ -150,7 +150,8 @@ def makeSkeleEstimate(folder_path, output_path):
   del writer
 
 if __name__=="__main__":
-  func_list = [ci.getArea, ci.getAverageShade]
+  first_angle = lambda worm_matrix, grayscale_matrix: sc.getSegmentAngle(worm_matrix,grayscale_matrix,point_num=10,angle_index = 1)
+  func_list = [ci.getArea, ci.getAverageShade,first_angle]
   #test = single_data("Annotated_4967","Annotated_344_469_4967.0_x1y1x2y2_909_835_966_855.png", func_list)
   #test2 = folder_data("Annotated_4967", func_list)
   start = t.time()

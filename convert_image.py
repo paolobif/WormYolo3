@@ -376,7 +376,9 @@ if __name__ == "__main__":
   #print(getAverageShade(selectWorm,grayscale_matrix))
   wormFront = findFront(selectWorm)
   skelList = createMiddleSkeleton((wormFront[1],wormFront[0]),selectWorm)
-  shortenSkel = sc.make_clusters(skelList)
+  shortenSkel = sc.make_numbered_clusters(skelList,4)
+  print(sc.getCmlAngle(selectWorm,grayscale_matrix))
+  print(sc.getSegmentAngle(selectWorm,grayscale_matrix,4,1))
   plt.imshow(makeSkelLines(selectWorm, grayscale_matrix, shortenSkel))
   i=0
   for item in skelList:
