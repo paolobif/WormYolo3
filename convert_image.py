@@ -17,6 +17,7 @@ import skeleton_cleaner as sc
 
 DENSITY_SEARCH = 2
 SEARCH_DELTA = 1.5
+ANGLE_DELTA = 0.05
 SKELETON_DELTA = 1
 ANGLE_NUM = 8
 
@@ -58,11 +59,11 @@ def getWormMatrices(image_path):
   """
   worm_dict = {}
   img = cv2.imread(image_path)
-  height, width, colors = img.shape
-  grayscale_matrix = np.zeros((height, width))
+  h, w, colors = img.shape
+  grayscale_matrix = np.zeros((h, w))
 
-  for y in range(height):
-    for x in range(width):
+  for y in range(h):
+    for x in range(w):
       rgb_values = img[y,x]
       grayscale_matrix[y,x] = np.min(rgb_values)
       if not (np.all(rgb_values == rgb_values[0])):
@@ -71,7 +72,7 @@ def getWormMatrices(image_path):
         if rgb_values in worm_dict:
           worm_dict[rgb_values][y,x] = 1
         else:
-          worm_dict[rgb_values] = np.zeros((height,width))
+          worm_dict[rgb_values] = np.zeros((h,w))
           worm_dict[rgb_values][y,x] = 1
   return worm_dict, grayscale_matrix
 
@@ -136,6 +137,14 @@ def moveAlongAxis(x, y, xSlope, ySlope, distance):
   newY = y + ySlope/np.sqrt(xSlope**2+ySlope**2)*distance
   return (newX, newY)
 
+def findFarthestAngle(x, y, worm_matrix):
+  angleList = np.arange(-np.pi,np.pi,np.pi/ANGLE_NUM)
+  angle_dict = {}
+  for angle in angleList:
+    coord = moveAlongAngle(x,y,angle,SEARCH_DELTA/2)
+    angle_dict[angle] = wormNearPixel(worm_matrix, coord[0],coord[1])
+
+  return(min(angle_dict, key=angle_dict.get))
 def findAngle(x, y, worm_matrix):
   """
   Finds the line that goes through the least worm possible drawn through point (x,y)
@@ -144,17 +153,17 @@ def findAngle(x, y, worm_matrix):
   angle_dict = {}
   for angle in angleList:
     sumV = 0
-    distance = SEARCH_DELTA
+    distance = ANGLE_DELTA
     coord = moveAlongAngle(x,y,angle,distance)
     while getValue(coord, worm_matrix):
-      distance+=SEARCH_DELTA
+      distance+=ANGLE_DELTA
       coord = moveAlongAngle(x,y,angle,distance)
     sumV += distance
 
-    distance = SEARCH_DELTA
+    distance = ANGLE_DELTA
     coord = moveAlongAngle(x,y,angle-np.pi,distance)
     while getValue(coord, worm_matrix):
-      distance+=SEARCH_DELTA
+      distance+=ANGLE_DELTA
       coord = moveAlongAngle(x,y,angle-np.pi,distance)
     sumV += distance
 
@@ -162,6 +171,34 @@ def findAngle(x, y, worm_matrix):
 
 
   return(min(angle_dict, key=angle_dict.get))
+
+def findAngleDict(x, y, worm_matrix):
+  """
+  Finds the line that goes through the least worm possible drawn through point (x,y)
+  """
+  angleList = np.arange(0,np.pi,np.pi/ANGLE_NUM)
+  angle_dict = {}
+  for angle in angleList:
+    sumV = 0
+    distance = ANGLE_DELTA
+    coord = moveAlongAngle(x,y,angle,distance)
+    while getValue(coord, worm_matrix):
+      distance+=ANGLE_DELTA
+      coord = moveAlongAngle(x,y,angle,distance)
+    sumV += distance
+
+    distance = ANGLE_DELTA
+    coord = moveAlongAngle(x,y,angle-np.pi,distance)
+    while getValue(coord, worm_matrix):
+      distance+=ANGLE_DELTA
+      coord = moveAlongAngle(x,y,angle-np.pi,distance)
+    sumV += distance
+
+    angle_dict[angle] = sumV
+  return angle_dict
+
+
+
 
 def createSkeleton(start_coord, worm_matrix):
   """
@@ -215,29 +252,44 @@ def createMiddleSkeleton(start_coord, worm_matrix):
 
   ortho_angle = findAngle(cur_coord[0], cur_coord[1], worm_matrix)
   coord1 = moveAlongAngle(cur_coord[0], cur_coord[1], ortho_angle + np.pi/2, SKELETON_DELTA)
-
-
   # Determine which path takes us towards the worm
   if getValue(coord1, worm_matrix):
     prev_angle = ortho_angle + np.pi/2
   else:
     prev_angle = ortho_angle - np.pi/2
 
+  if not getValue(moveAlongAngle(cur_coord[0], cur_coord[1], prev_angle, SKELETON_DELTA),worm_matrix):
+    prev_angle = getAngleMax(cur_coord, ortho_angle, worm_matrix)
+    prev_angle = getAngleMax(cur_coord, prev_angle, worm_matrix)
+    prev_angle = getAngleMax(cur_coord, prev_angle, worm_matrix)
+  if not getValue(moveAlongAngle(cur_coord[0], cur_coord[1], prev_angle, SKELETON_DELTA),worm_matrix):
+    for angle in np.arange(0,2*np.pi,np.pi/4):
+      if getValue(moveAlongAngle(cur_coord[0], cur_coord[1], angle, SKELETON_DELTA),worm_matrix):
+        prev_angle = angle
+        break
+
   while getValue(cur_coord, worm_matrix):
     towards_angle = getAngleMax(cur_coord, prev_angle, worm_matrix)
     cur_coord = moveAlongAngle(cur_coord[0], cur_coord[1], towards_angle, SKELETON_DELTA)
     prev_angle = towards_angle
+    point_list.append(cur_coord)
     if checkClosePoint(cur_coord,point_list):
       break
-    point_list.append(cur_coord)
 
+
+  point_list = sc.cleanSmallLoops(point_list)
   return point_list
 
 def checkClosePoint(coord,point_list):
   """
   Checks whether a coordinate is too close to any of the points in point_list
   """
-  for point in point_list:
+  copy_list = point_list.copy()
+
+  if coord in point_list:
+    copy_list.remove(coord)
+
+  for point in copy_list:
     if pointDistance(coord, point) < SKELETON_DELTA/2:
       return True
   return False
@@ -298,7 +350,6 @@ def findCenterWorm(worm_dict):
   for key in worm_dict:
     cur_worm = worm_dict[key]
 
-
     radius = 0
     while not checkRadius(cur_worm, radius):
       radius+=1
@@ -343,12 +394,27 @@ def createHighlight(worm_matrix, grayscale_matrix):
   return returnMatrix
 
 def makeSkelImg(worm_matrix, grayscale_matrix, point_list):
+  """
+  Creates a rgb image where the worm is highlighted and points are a different color
+  Used to show skeleton
+
+  worm_matrix: The matrix that says what is worm
+  grayscale_matrix: The grayscale image
+  point_list: The series of points
+  """
   rgb = createHighlight(worm_matrix,grayscale_matrix)
   for point in point_list:
     rgb[round(point[1])][round(point[0])][1] += 100
   return rgb
 
 def makeSkelLines(worm_matrix, grayscale_matrix, point_list):
+  """
+  Makes an rgb matrix where the worm is highlighted and the skeleton is clearly marked as lines
+
+  worm_matrix: The matrix that says what is worm
+  grayscale_matrix: The grayscale image
+  point_list: The series of points to connect with lines in the image
+  """
   rgb = createHighlight(worm_matrix,grayscale_matrix)
   for i in range(len(point_list)-1):
     point1 = point_list[i]
@@ -366,19 +432,95 @@ def makeSkelLines(worm_matrix, grayscale_matrix, point_list):
 
   return rgb
 
+def getMaxWidth(worm_matrix,grayscale_matrix, path=None):
+  """
+  Finds the maximum width of the provided worm
+  """
+  #wormFront = findFront(worm_matrix)
+  #skelList = createMiddleSkeleton((wormFront[1],wormFront[0]),worm_matrix)
+  #skelList = sc.betterMiddleSkel(worm_matrix)
+  skelList = sc.fastMiddleSkel(worm_matrix)
+  width_point = {}
+  # Find Max Width
+  for i in range(len(skelList)):
+    point = skelList[i]
+    x = point[0]; y = point[1]
+
+    angle_dict = findAngleDict(x,y,worm_matrix)
+    width = angle_dict[min(angle_dict,key=angle_dict.get)]
+    width_point[point] = width
+
+  return width_point[max(width_point, key=width_point.get)]
+
+
+def getMidWidth(worm_matrix,grayscale_matrix, path=None):
+  """
+  Finds the width of the provided worm in the approximate middle
+  """
+  #wormFront = findFront(worm_matrix)
+  #skelList = createMiddleSkeleton((wormFront[1],wormFront[0]),worm_matrix)
+  #skelList = sc.betterMiddleSkel(worm_matrix)
+  skelList = sc.fastMiddleSkel(worm_matrix)
+  width_point = {}
+  # Find Mid Width
+  point = skelList[round(len(skelList)/2)]
+  x = point[0]; y = point[1]
+
+  angle_dict = findAngleDict(x,y,worm_matrix)
+  width = angle_dict[min(angle_dict,key=angle_dict.get)]
+  width_point[point] = width
+
+  return width_point[max(width_point, key=width_point.get)]
+
+def makeWormOutline(worm_matrix):
+  copy_matrix = worm_matrix.copy()
+  # For each point
+  for i in range(len(worm_matrix)):
+    for j in range(len(worm_matrix[i])):
+      coord = (j,i)
+      if worm_matrix[i,j]==1:
+        if not checkIfNotEdge(coord, worm_matrix):
+          copy_matrix[i,j] = 0
+  return copy_matrix
+
+def checkIfNotEdge(coord, worm_matrix):
+  y = coord[1]
+  x = coord[0]
+  height, width = worm_matrix.shape
+  # Check each side
+  if getValue((x,y+1),worm_matrix) and getValue((x,y-1),worm_matrix) and getValue((x+1,y),worm_matrix) and getValue((x-1,y),worm_matrix):
+    return False
+  else:
+    return True
 
 if __name__ == "__main__":
-  worm_dict, grayscale_matrix = getWormMatrices("C:/Users/cdkte/Downloads/worm_segmentation/Anno_5240/Annotated_344_695_5240.0_x1y1x2y2_1002_145_1045_177.png")
+  #worm_dict, grayscale_matrix = getWormMatrices("C:/Users/cdkte/Downloads/worm_segmentation/Anno_5240/Annotated_344_532_5240.0_x1y1x2y2_1011_153_1053_179.png")
+  #worm_dict2, grayscale_matrix2 = getWormMatrices("C:/Users/cdkte/Downloads/worm_segmentation/Anno_5240/Annotated_344_535_5240.0_x1y1x2y2_1014_151_1053_177.png")
+  #worm_dict, grayscale_matrix = getWormMatrices("C:/Users/cdkte/Downloads/worm_segmentation/Anno_5018/Annotated_344_477_5018.0_x1y1x2y2_1132_408_1188_431.png")
+  #worm_dict2, grayscale_matrix2 = getWormMatrices("C:/Users/cdkte/Downloads/worm_segmentation/Anno_5018/Annotated_344_478_5018.0_x1y1x2y2_1133_408_1188_429.png")
+  worm_dict, grayscale_matrix = getWormMatrices("C:/Users/cdkte/Downloads/yolo3/Worm-Yolo3/Anno_5515.0/Annotated_344_1083_5515.0_x1y1x2y2_927_477_962_514.png")
+  #worm_dict, grayscale_matrix = getWormMatrices("C:/Users/cdkte/Downloads/yolo3/Worm-Yolo3/Anno_5518.0/Annotated_344_838_5518.0_x1y1x2y2_722_404_746_446.png")
 
   selectWorm = findCenterWorm(worm_dict)
+  #selectWorm2 = findCenterWorm(worm_dict2)
 
   #print(getArea(selectWorm))
   #print(getAverageShade(selectWorm,grayscale_matrix))
+  POINT_NUM = 7
   wormFront = findFront(selectWorm)
   skelList = createMiddleSkeleton((wormFront[1],wormFront[0]),selectWorm)
-  shortenSkel = sc.make_numbered_clusters(skelList,4)
+  shortenSkel = sc.makeFractionedClusters(skelList,5)
+  #wormFront2 = findFront(selectWorm2)
+  #skelList2 = createMiddleSkeleton((wormFront2[1],wormFront2[0]),selectWorm2)
+  #shortenSkel2 = sc.makeFractionedClusters(skelList2,POINT_NUM)
+  print("width",getMaxWidth(selectWorm,grayscale_matrix))
   print(sc.getCmlAngle(selectWorm,grayscale_matrix))
-  print(sc.getSegmentAngle(selectWorm,grayscale_matrix,4,1))
+  """
+  plt.plot(x,y)
+  plt.plot(x,y2)
+  plt.show()
+  """
+
   plt.imshow(makeSkelLines(selectWorm, grayscale_matrix, shortenSkel))
   i=0
   for item in skelList:
@@ -387,6 +529,10 @@ if __name__ == "__main__":
   for item in shortenSkel:
     plt.plot(item[0],item[1],'bo',markersize=9)
     i+=1
+
+  outline_matrix = makeWormOutline(selectWorm)
+  #plt.imshow(createHighlight(outline_matrix,grayscale_matrix))
+  #print(sc.getDiagonalNum(selectWorm,grayscale_matrix))
   '''
   plt.imshow(selectWorm)
   plt.plot(wormFront[1], wormFront[0],'bo')
@@ -400,4 +546,16 @@ if __name__ == "__main__":
     #i-=1
   '''
   plt.show()
+  '''
+  plt.imshow(makeSkelLines(selectWorm2, grayscale_matrix2, shortenSkel2))
+  i=0
+  for item in skelList2:
+    plt.plot(item[0],item[1],'bo',markersize=3)
+    i+=1
+  for item in shortenSkel2:
+    plt.plot(item[0],item[1],'bo',markersize=9)
+    i+=1
+  #plt.show()
+  '''
 
+  #"""

@@ -1,19 +1,22 @@
+from numpy.lib.function_base import select
 import convert_image as ci
-import segmentation as seg
 import skeleton_cleaner as sc
 import numpy as np
 import os
 import time as t
-import tensorflow as tf
 import cv2
 from matplotlib import pyplot as plt
+from multiprocessing import Pool
 
 """
 Requires Tensorflow, cv2, and Pixellib
 """
 
 DATA_PATH = "Anno_"
+MODEL_PATH = "C:/Users/cdkte/Downloads/worm_segmentation/model_folder/mask_rcnn_model.003-0.442767.h5"
 
+def run_function(tupl):
+  return tupl[0](tupl[1],tupl[2])
 
 def single_data(folder_path,img_name, function_list):
   """
@@ -25,15 +28,29 @@ def single_data(folder_path,img_name, function_list):
   """
   #Correct img_name format: Annotated_344_469_4967.0_x1y1x2y2_909_835_966_855.png
   worm_dict, grayscale_matrix = ci.getWormMatrices(folder_path+"/"+img_name)
-  select_worm = ci.findCenterWorm(worm_dict)
-  parsed_name = img_name.split("_")
+  lambda_func = lambda func: func(worm_dict, grayscale_matrix)
   #annotated = parsed_name[0]
-  vid_id = parsed_name[1]
-  frame = parsed_name[2]
-  worm_id = parsed_name[3]
-  outnumpy = np.array([worm_id, frame])
-  for func in function_list:
-    outnumpy = np.append(outnumpy, func(select_worm, grayscale_matrix))
+  try:
+    select_worm = ci.findCenterWorm(worm_dict)
+    parsed_name = img_name.split("_")
+    vid_id = parsed_name[1]
+    frame = parsed_name[2]
+    worm_id = parsed_name[3]
+    x1=parsed_name[5];y1=parsed_name[6];x2=parsed_name[7];y2=parsed_name[8].split(".")[0]
+    outnumpy = np.array([frame,x1,y1,x2,y2,worm_id])
+    """
+    tup_list = []
+    for item in function_list:
+      tup_list.append((item,select_worm,grayscale_matrix))
+    with Pool(6) as p:
+      nextOutP = p.map(run_function,tup_list)
+    outnumpy = np.append(outnumpy,nextOutP)
+    """
+    for func in function_list:
+      outnumpy = np.append(outnumpy, func(select_worm, grayscale_matrix))
+  except:
+    print(folder_path+"/"+img_name + " is invalid")
+    return None
   return outnumpy
 
 def folder_data(folder_path, function_list):
@@ -44,19 +61,20 @@ def folder_data(folder_path, function_list):
   function_list: The list of functions to be run on each file
   """
   files = os.listdir(folder_path)
-  arr_shape = (len(files), 2+len(func_list))
+  arr_shape = (len(files), 6+len(function_list))
   percent_check = [round(len(files)/4), round(len(files)/2), round(3*len(files)/4)]
   out_arr = np.empty(arr_shape)
+
   for i in range(len(files)):
     out_arr[i] = single_data(folder_path, files[i], function_list)
     if i in percent_check:
       print(str(int(i*100/len(files))) + "% complete on folder "+folder_path)
 
-  sorted_array = out_arr[np.argsort(out_arr[:, 0])]
-  sorted_array = sorted_array[np.argsort(sorted_array[:, 1])]
+  sorted_array = out_arr[np.argsort(out_arr[:, 5])]
+  sorted_array = sorted_array[np.argsort(sorted_array[:, 0])]
   return sorted_array
 
-def save_folder(folder_path, out_file, function_list):
+def save_folder(folder_path, out_file, function_list,match_dict={}):
   """
   Runs folder_data and saves it in a file
   ---
@@ -65,21 +83,55 @@ def save_folder(folder_path, out_file, function_list):
   function_list: The list of functions to be run on each file
   """
   sorted_array = folder_data(folder_path, function_list)
-  np.savetxt(out_file, sorted_array, delimiter=",")
+  titles = functionNames(function_list,match_dict)
+  np.savetxt(out_file, sorted_array, header = titles, delimiter = ",")
 
-def data_folder(folder_path, func_list):
+def functionNames(function_list,match_dict={}):
   """
-  Highlights the images in a folder and then saves it in a file
-  ---
-  folder_path: The folder to be processed (currently only works with folders within the cwd)
-  func_list: The list of functions to be run on each file
+  Creates an array that stores the names of the functions used in gathering Worm data
+  Matches the order created in single_data
   """
-  seg.annotateFolder(folder_path, "models\\mask_rcnn_model.002-0.633895.h5", DATA_PATH+folder_path)
-  save_folder("Anno_"+folder_path, DATA_PATH+folder_path+".csv", func_list)
+  out_arr = []
 
-def makeSkeleVideo(folder_path, output_path):
+  out_arr.append("Video Frame")
+  out_arr.append("x1");out_arr.append("y1");out_arr.append("x2");out_arr.append("y2")
+  out_arr.append("Worm ID")
+  for i in range(len(function_list)):
+    cur_func = function_list[i]
+    if cur_func in match_dict:
+      out_arr.append(match_dict[cur_func])
+    elif cur_func == sc.getDiagonalNum:
+      out_arr.append("Diagonals")
+    elif cur_func == sc.getCmlAngle:
+      out_arr.append("Cumulative Angle")
+    elif cur_func == sc.getCmlDistance:
+      out_arr.append("Length")
+    elif cur_func == ci.getArea:
+      out_arr.append("Area")
+    elif cur_func == ci.getAverageShade:
+      out_arr.append("Shade")
+    elif cur_func == ci.getMaxWidth:
+      out_arr.append("Max Width")
+    elif cur_func == ci.getMidWidth:
+      out_arr.append("Mid Width")
+    else:
+      out_arr.append("Unassigned Function")
+  return ",".join(out_arr)
+
+
+def isalambda(v):
   """
-  Creates a video of the annotated worm as it moves with a middle line the entire time
+  Copied from Alex Martelli on
+  https://stackoverflow.com/questions/3655842/how-can-i-test-whether-a-variable-holds-a-lambda
+  """
+  LAMBDA = lambda:0
+  return isinstance(v, type(LAMBDA)) and v.__name__ == LAMBDA.__name__
+
+
+
+def makeAnnoVideo(folder_path, output_path):
+  """
+  Creates a video of the annotated worm as it moves
   """
   files = os.listdir(folder_path)
   # Find largest image
@@ -93,21 +145,20 @@ def makeSkeleVideo(folder_path, output_path):
     if width > max_width:
       max_width = width
 
-
   writer = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'DIVX'), 25, (max_width+1, max_height+1), True)
   for file in files:
     empty_image = np.zeros((max_height+1,max_width+1,3),'uint8')
     worm_dict, grayscale_matrix = ci.getWormMatrices(folder_path+"/"+file)
-    selectWorm = ci.findCenterWorm(worm_dict)
-    wormFront = ci.findFront(selectWorm)
-    skelList = ci.createMiddleSkeleton((wormFront[1],wormFront[0]),selectWorm)
-    img = ci.makeSkelImg(selectWorm, grayscale_matrix, skelList)
+    try:
+      selectWorm = ci.findCenterWorm(worm_dict)
+    except:
+      # If no worm was detected, skip this frame
+      continue
+    img = ci.createHighlight(selectWorm,grayscale_matrix)
     height, width, colors = img.shape
     h_padding = round((max_height - height)/2)
     w_padding = round((max_width - width)/2)
     empty_image[h_padding:h_padding+height,w_padding:w_padding+width] = img
-    #plt.imshow(empty_image)
-    #plt.show()
     writer.write(empty_image)
 
   del writer
@@ -134,8 +185,10 @@ def makeSkeleEstimate(folder_path, output_path):
     empty_image = np.zeros((max_height+1,max_width+1,3),'uint8')
     worm_dict, grayscale_matrix = ci.getWormMatrices(folder_path+"/"+file)
     selectWorm = ci.findCenterWorm(worm_dict)
-    wormFront = ci.findFront(selectWorm)
-    skelList = ci.createMiddleSkeleton((wormFront[1],wormFront[0]),selectWorm)
+    #wormFront = ci.findFront(selectWorm)
+    #skelList = ci.createMiddleSkeleton((wormFront[1],wormFront[0]),selectWorm)
+    #skelList = sc.betterMiddleSkel(selectWorm)
+    skelList = sc.fastMiddleSkel(selectWorm)
     shortenSkel = sc.make_clusters(skelList)
     try:
       img = ci.makeSkelLines(selectWorm, grayscale_matrix, shortenSkel)
@@ -149,13 +202,57 @@ def makeSkeleEstimate(folder_path, output_path):
 
   del writer
 
+def makeSkeleVideo(folder_path, output_path):
+  """
+  Creates a video of the annotated worm as it moves with an approximate middle line the entire time
+  """
+  files = os.listdir(folder_path)
+  # Find largest image
+  max_width = 0
+  max_height = 0
+  for file in files:
+    img = cv2.imread(folder_path+"/"+file)
+    height, width, colors = img.shape
+    if height > max_height:
+      max_height = height
+    if width > max_width:
+      max_width = width
+
+  writer = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'DIVX'), 25, (max_width+1, max_height+1), True)
+  for file in files:
+    empty_image = np.zeros((max_height+1,max_width+1,3),'uint8')
+    worm_dict, grayscale_matrix = ci.getWormMatrices(folder_path+"/"+file)
+    try:
+      selectWorm = ci.findCenterWorm(worm_dict)
+    except:
+      continue
+    wormFront = ci.findFront(selectWorm)
+    skelList = ci.createMiddleSkeleton((wormFront[1],wormFront[0]),selectWorm)
+    #skelList = sc.betterMiddleSkel(selectWorm)
+    shortenSkel = sc.make_clusters(skelList)
+    try:
+      img = ci.makeSkelLines(selectWorm, grayscale_matrix, shortenSkel)
+    except:
+      continue
+    height, width, colors = img.shape
+    h_padding = round((max_height - height)/2)
+    w_padding = round((max_width - width)/2)
+    empty_image[h_padding:h_padding+height,w_padding:w_padding+width] = img
+    writer.write(empty_image)
+
+  del writer
+
+
 if __name__=="__main__":
   first_angle = lambda worm_matrix, grayscale_matrix: sc.getSegmentAngle(worm_matrix,grayscale_matrix,point_num=10,angle_index = 1)
-  func_list = [ci.getArea, ci.getAverageShade,first_angle]
+  last_angle = lambda worm_matrix, grayscale_matrix: sc.getSegmentAngle(worm_matrix,grayscale_matrix,point_num=7,angle_index = 4)
+  func_list = [ci.getArea, ci.getAverageShade,sc.getCmlAngle,sc.getCmlDistance,ci.getMidWidth,sc.getDiagonalNum]
   #test = single_data("Annotated_4967","Annotated_344_469_4967.0_x1y1x2y2_909_835_966_855.png", func_list)
-  #test2 = folder_data("Annotated_4967", func_list)
   start = t.time()
-  #data_folder("5240", func_list)
-  makeSkeleEstimate("C:/Users/cdkte/Downloads/worm_segmentation/Annotated_4967","C:/Users/cdkte/Downloads/worm_segmentation/SkeletonVids/v2/4967.avi")
+  match_dict = {last_angle:"Last Angle"}
+  #print(functionNames(func_list,match_dict))
+  #test2 = data_folder("C:/Users/cdkte/Downloads/6158.0", func_list,match_dict)
+  save_folder("Anno_5518.0","Anno_5518.0.csv", func_list,match_dict = match_dict)
+  #makeSkeleEstimate("C:/Users/cdkte/Downloads/worm_segmentation/Annotated_4967","C:/Users/cdkte/Downloads/worm_segmentation/SkeletonVids/v2/4967.avi")
   stop = t.time()
   print(str(stop - start) + " seconds passed")

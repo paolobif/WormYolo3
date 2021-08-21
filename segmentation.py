@@ -3,23 +3,28 @@ import pixellib
 from pixellib.custom_train import instance_custom_training
 from pixellib.semantic import semantic_segmentation
 from pixellib.instance import custom_segmentation
+import image_analysis as ia
 
 """
 Requires Tenserflow and Pixellib
 """
+DATA_PATH = "Anno_"
 
+
+MODEL_PATH = "C:/Users/cdkte/Downloads/worm_segmentation/model_folder/mask_rcnn_model.003-0.442767.h5"
 
 def trainFromFolder(input,output):
   """
   Trains AI models from the input folder and puts the most successful models in the output folder.
   Note that for this to work, there needs to be both images and JSON files in a Train folder and Test folder in the input folder
+  This format is easily made using labelme
 
   input: The file path to the data to train from
   output: The file path to store info in
   """
   train_maskrcnn = instance_custom_training()
-  train_maskrcnn.modelConfig(network_backbone = "resnet101", num_classes= 1, batch_size = 4, gpu_count = 1)
-  train_maskrcnn.load_pretrained_model("models/mask_rcnn_model.002-0.633895.h5")
+  train_maskrcnn.modelConfig(network_backbone = "resnet101", num_classes= 1, batch_size = 2)
+  train_maskrcnn.load_pretrained_model(MODEL_PATH)
   train_maskrcnn.load_dataset(input)
   train_maskrcnn.train_model(num_epochs = 300, augmentation=True,  path_trained_models = output)
 
@@ -52,7 +57,7 @@ def annotateFolder(input_path, model_path, output_path):
   segment_image.load_model(model_path)
 
   for item in all_image:
-    segment_image.segmentImage(input_path+"\\"+item, show_bboxes=False, output_image_name=output_path+"\\Annotated_"+item,
+    segment_image.segmentImage(input_path+"/"+item, show_bboxes=False, output_image_name=output_path+"/Annotated_"+item,
     extract_segmented_objects= False, save_extracted_objects=False)
 
 def annotateVideo(model_path):
@@ -65,15 +70,24 @@ def annotateVideo(model_path):
   test_video.load_model(model_path)
   test_video.process_video("694.avi", show_bboxes = True,  output_video_name="694_anno.avi", frames_per_second=25)
 
+def data_folder(folder_path, func_list, match_dict):
+  """
+  Highlights the images in a folder and then saves it in a file
+  ---
+  folder_path: The folder to be processed (currently only works with folders within the cwd)
+  func_list: The list of functions to be run on each file
+  """
+  annotateFolder(folder_path, MODEL_PATH, DATA_PATH+folder_path.split("/")[-1])
+  ia.save_folder(DATA_PATH+folder_path.split("/")[-1], DATA_PATH+folder_path.split("/")[-1]+".csv", func_list, match_dict)
 
 
 if __name__ == "__main__":
-  file_directory = __file__
-  file_folder = __file__.split("\\")
-  file_folder.remove(file_folder[-1])
-  file_folder = "\\".join(file_folder)
-  os.chdir(file_folder)
-  #trainFromFolder("Training_Data","models")
-  #annotateFolder("4967.0","models\\mask_rcnn_model.002-0.633895.h5","Annotated_4967")
-  annotateSingle("4967.0\\344_470_4967.0_x1y1x2y2_905_834_966_854.png", "models\\mask_rcnn_model.002-0.633895.h5", "edited.png")
-  #annotateVideo("models\\mask_rcnn_model.001-0.565890.h5")
+  #file_directory = __file__
+  #file_folder = __file__.split("/")
+  #file_folder.remove(file_folder[-1])
+  #file_folder = "/".join(file_folder)
+  #os.chdir(file_folder)
+  trainFromFolder("C:/Users/cdkte/Downloads/worm_segmentation/Training_Data","C:/Users/cdkte/Downloads/worm_segmentation/model_folder")
+  #annotateFolder("4967.0","models/mask_rcnn_model.002-0.633895.h5","Annotated_4967")
+  #annotateSingle("4967.0/344_470_4967.0_x1y1x2y2_905_834_966_854.png", "models/mask_rcnn_model.002-0.633895.h5", "edited.png")
+  #annotateVideo("models/mask_rcnn_model.001-0.565890.h5")
