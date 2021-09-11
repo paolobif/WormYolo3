@@ -61,12 +61,17 @@ def getWormMatrices(image_path):
   img = cv2.imread(image_path)
   h, w, colors = img.shape
   grayscale_matrix = np.zeros((h, w))
+  #print(img)
 
   for y in range(h):
     for x in range(w):
       rgb_values = img[y,x]
       grayscale_matrix[y,x] = np.min(rgb_values)
-      if not (np.all(rgb_values == rgb_values[0])):
+      continu = False
+      for item in rgb_values:
+        if abs(item-rgb_values[0])>5:
+          continu = True
+      if continu:#not (np.all(rgb_values == rgb_values[0])):
         grayscale_matrix[y,x] = np.min(rgb_values)*2
         rgb_values = 10*round((int(rgb_values[0])-int(rgb_values[1]))/10)
         if rgb_values in worm_dict:
@@ -325,7 +330,10 @@ def getValue(coord, worm_matrix):
   """
   Gets the shade of worm at (x,y)
   """
-  return worm_matrix[round(coord[1]),round(coord[0])]
+  try:
+    return worm_matrix[round(coord[1]),round(coord[0])]
+  except:
+    return 0
 
 def makeImg(data):
   """
@@ -500,8 +508,11 @@ if __name__ == "__main__":
   #worm_dict2, grayscale_matrix2 = getWormMatrices("C:/Users/cdkte/Downloads/worm_segmentation/Anno_5018/Annotated_344_478_5018.0_x1y1x2y2_1133_408_1188_429.png")
   worm_dict, grayscale_matrix = getWormMatrices("C:/Users/cdkte/Downloads/yolo3/Worm-Yolo3/Anno_5515.0/Annotated_344_1083_5515.0_x1y1x2y2_927_477_962_514.png")
   #worm_dict, grayscale_matrix = getWormMatrices("C:/Users/cdkte/Downloads/yolo3/Worm-Yolo3/Anno_5518.0/Annotated_344_838_5518.0_x1y1x2y2_722_404_746_446.png")
+  worm_dict, grayscale_matrix = getWormMatrices("C:/Users/cdkte/Downloads/yolo3/Worm-Yolo3/Day4/Anno_2/Annotated_681_day4_simple_2_2_x1y1x2y2_562_276_606_298.png")
+  worm_dict, grayscale_matrix = getWormMatrices("C:/Users/cdkte/Downloads/yolo3/Worm-Yolo3/Day10/Anno_10/Annotated_681_day10_simple_9_10_x1y1x2y2_440_781_462_828.png")
 
   selectWorm = findCenterWorm(worm_dict)
+  print(worm_dict)
   #selectWorm2 = findCenterWorm(worm_dict2)
 
   #print(getArea(selectWorm))
@@ -509,6 +520,7 @@ if __name__ == "__main__":
   POINT_NUM = 7
   wormFront = findFront(selectWorm)
   skelList = createMiddleSkeleton((wormFront[1],wormFront[0]),selectWorm)
+  skelList = sc.fastMiddleSkel(selectWorm)
   shortenSkel = sc.makeFractionedClusters(skelList,5)
   #wormFront2 = findFront(selectWorm2)
   #skelList2 = createMiddleSkeleton((wormFront2[1],wormFront2[0]),selectWorm2)

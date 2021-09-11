@@ -11,6 +11,7 @@ import convert_image as ci
 import time as t
 import shutil
 import os
+import sys
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -31,6 +32,12 @@ MODEL_PATH = "C:/Users/cdkte/Downloads/worm_segmentation/model_folder/mask_rcnn_
 
 # The number of Tensorflow processes that can be run at one time
 PROCESS_NUM = 1
+
+# Delete images and annotated images after creating the video
+DELETE_FRAMES = False
+
+# The minimum number of frames for a unique worm for it to be tracked
+MIN_FRAMES = 45
 
 def createImages(vid_path,csv_path,out_path):
   """
@@ -69,7 +76,7 @@ def createImages(vid_path,csv_path,out_path):
   working_worms = []
   for i in unique_worms:
     if not os.path.exists(out_path+"/"+str(i)):
-      if unique_worms[i]>=45:
+      if unique_worms[i]>=MIN_FRAMES:
         working_worms.append(i)
         os.mkdir(out_path+"/"+str(i))
   for i in range(int(total_frame_count)):
@@ -107,19 +114,21 @@ def createImages(vid_path,csv_path,out_path):
   print("100% Complete!")
 
 def createAnnotatedFolders(folder_path):
+  """
+  For each folder of images within folder_path, creates a folder for highlighted images
+  and fills it.
+  Uses multiprocessing to clear Tensorflow memory
+  """
   all_files = os.listdir(folder_path)
   i = 0
   total_length = len(all_files)
   multi_list = []
-  #anno_folder = lambda file: seg.annotateFolder(folder_path+"/"+file,MODEL_PATH,folder_path+"/"+DATA_PATH+file)
   for file in all_files:
     i+=1
     if os.path.isdir(folder_path+"/"+file) and file.split("_")[0]!=DATA_PATH:
       p = multiprocessing.Process(target = seg.annotateFolder, args=(folder_path+"/"+file,MODEL_PATH,folder_path+"/"+DATA_PATH+"_"+file))
       p.start()
       multi_list.append(p)
-      #p.join()
-      #cleanFolder(folder_path)
     print(i," out of ",total_length," started")
     if len(multi_list) >= PROCESS_NUM:
       for j in range(len(multi_list)):
@@ -128,10 +137,12 @@ def createAnnotatedFolders(folder_path):
         multi_list.remove(proc)
 
 def gatherAllData(folder_path, function_list):
+  """
+  Collects the information from individual images and returns it as a matrix.
+  """
   all_files = os.listdir(folder_path)
   i = 0
   total_length = len(all_files)/2
-  # Tensorflow has memory issues
   all_data=np.empty((0,6+len(function_list)))
   for file in all_files:
 
@@ -144,6 +155,10 @@ def gatherAllData(folder_path, function_list):
   return all_data
 
 def storeAllData(folder_path, function_list, match_dict = {}):
+  """
+  Takes highlighted images from folder_path, and runs each through the functions in
+  function_list storing the results to a csv file.
+  """
   titles =   titles = ia.functionNames(function_list,match_dict)
   all_data = gatherAllData(folder_path, function_list)
   folder_name = os.path.basename(folder_path)
@@ -151,6 +166,9 @@ def storeAllData(folder_path, function_list, match_dict = {}):
   np.savetxt(folder_path+"/"+folder_name+".csv", all_data, header = titles, delimiter = ",")
 
 def storeVideos(folder_path):
+  """
+  Creates a skeleton video and a highlighted video for each folder in folder_path
+  """
   print("Creating videos!")
   all_files = os.listdir(folder_path)
   i = 0
@@ -158,15 +176,24 @@ def storeVideos(folder_path):
   for folder in all_files:
     if os.path.isdir(folder_path+"/"+folder) and folder.split("_")[0] == DATA_PATH:
       orig_folder = folder.split("_")[-1]
-      for file in os.listdir(folder_path+"/"+orig_folder):
-        os.remove(folder_path+"/"+orig_folder+"/"+file)
+      if DELETE_FRAMES:
+        for file in os.listdir(folder_path+"/"+orig_folder):
+          os.remove(folder_path+"/"+orig_folder+"/"+file)
       ia.makeSkeleVideo(folder_path+"/"+folder,folder_path+"/"+orig_folder+"/"+SKELE_PATH+"_"+orig_folder+".avi")
       ia.makeAnnoVideo(folder_path+"/"+folder,folder_path+"/"+orig_folder+"/"+DATA_PATH+"_"+orig_folder+".avi")
       i += 1
       print(i,"out of",total_length,"complete!")
-      shutil.rmtree(folder_path+"/"+folder)
+      if DELETE_FRAMES:
+        shutil.rmtree(folder_path+"/"+folder)
 
 def runAllPixellib(vid_path,csv_path,folder_path):
+  """
+  Takes a video and a sorted csv file and turns it entirely into data
+
+  vid_path: The path to the video
+  csv_path: The sorted csv file
+  folder_path: The path to store outputs
+  """
   start = t.time()
   createImages(vid_path,csv_path,folder_path)
   createAnnotatedFolders(folder_path)
@@ -180,9 +207,61 @@ def runAllPixellib(vid_path,csv_path,folder_path):
 if __name__ == "__main__":
   func_list = [ci.getArea, ci.getAverageShade,sc.getCmlAngle,sc.getCmlDistance,ci.getMaxWidth,ci.getMidWidth,sc.getDiagonalNum]
 
+  try:
+    avi_path = sys.argv[1]
+  except IndexError:
+    print("No AVI path detected. Using default path")
+    avi_path = "C:/Users/cdkte/Downloads/Mot_Single/206.avi"
+
+  try:
+    csv_path = sys.argv[2]
+  except IndexError:
+    print("No CSV path detected. Using default path")
+    csv_path = "C:/Users/cdkte/Downloads/Mot_Single/206_sort.csv"
+
+  try:
+    output_path = sys.argv[3]
+  except:
+    print("No output path detected")
+    output_path = "206"
+
+  try:
+    MODEL_PATH = sys.argv[3]
+  except IndexError:
+    print("No model: Using default model")
+
+  try:
+    MIN_FRAMES = int(sys.argv[4])
+  except IndexError:
+    print("No minimum number of frames: Using default value =",MIN_FRAMES)
+  except ValueError:
+    print("Invalid value for minimum number of frames: Using default value =",MIN_FRAMES)
+
+  try:
+    DELETE_FRAMES = bool(sys.argv[5])
+  except ValueError:
+    print("Invalid bool value for deleting frames: Using default setting")
+  except IndexError:
+    print("No bool for deleting frames: Using default setting")
+
+  try:
+    PROCESS_NUM = int(sys.argv[6])
+  except ValueError:
+    print("Invalid int value for number of Tensorflow processes: Using default setting")
+  except IndexError:
+    print("No int for number of Tensorflow procceses: Using default setting")
+
+
+
+
+
   #storeAllData("206",func_list)
-  runAllPixellib("C:/Users/cdkte/Downloads/Mot_Single/206.avi","C:/Users/cdkte/Downloads/Mot_Single/206_sort.csv","206")
+  runAllPixellib(avi_path,csv_path,output_path)
   #storeVideos("206")
+  #screateAnnotatedFolders("Day10")
+
+  #storeAllData("Day10", func_list)
+
 
 
 

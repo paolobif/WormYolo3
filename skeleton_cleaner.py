@@ -223,7 +223,8 @@ def getSegmentAngle(worm_matrix, grayscale_matrix, point_num = 10, angle_index =
   """
   #wormFront = ci.findFront(worm_matrix)
   #skelList = ci.createMiddleSkeleton((wormFront[1],wormFront[0]),worm_matrix)
-  skelList = fastMiddleSkel(worm_matrix)
+  #skelList = fastMiddleSkel(worm_matrix)
+  skelList = lazySkeleton(worm_matrix)
   skelSimple = makeFractionedClusters(skelList, point_num)
   return getAngle(skelSimple[angle_index],skelSimple[angle_index+1],skelSimple[angle_index+2])
 
@@ -233,8 +234,10 @@ def getCmlAngle(worm_matrix, grayscale_matrix, worm_path=None, point_num = 5):
   """
   #wormFront = ci.findFront(worm_matrix)
   #skelList = ci.createMiddleSkeleton((wormFront[1],wormFront[0]),worm_matrix)
-  skelList = fastMiddleSkel(worm_matrix)
+  #skelList = fastMiddleSkel(worm_matrix)
   #skelList = betterMiddleSkel(worm_matrix)
+  #skelList = segmentSkeleton(worm_matrix)
+  skelList = lazySkeleton(worm_matrix)
   skelSimple = makeFractionedClusters(skelList, point_num)
   return getCmlAnglePoints(skelSimple)
 def getCmlDistance(worm_matrix, grayscale_matrix, worm_path=None):
@@ -445,6 +448,221 @@ def getMiddle(point_list):
     point_dict[point] = sum
   return min(point_dict, key=point_dict.get)
 
+def lineSegmentSkel(worm_matrix):
+
+  # Identify initial point
+  h, w = worm_matrix.shape
+  working_point = (int(h/2), int(w/2))
+  try:
+    while not worm_matrix[working_point[0],working_point[1]]:
+      working_point = (working_point[0],working_point[1]+1)
+  except:
+    working_point = (int(h/2), int(w/2))
+    while not worm_matrix[working_point[0],working_point[1]]:
+        working_point = (working_point[0],working_point[1]-1)
+
+  # Identify whether the region is horizontal or vertical
+  horz_sum = np.sum(worm_matrix[working_point[0],:])
+  vert_sum = np.sum(worm_matrix[:,working_point[1]])
+  # low, high, left, right
+  bounds = [working_point[0],working_point[0],working_point[1],working_point[1]]
+
+  # If moving vertically
+  if vert_sum > horz_sum:
+    while worm_matrix[working_point[0],bounds[2]]:
+      bounds[2] = bounds[2]-1
+    while worm_matrix[working_point[0],bounds[3]]:
+      bounds[3] = bounds[3]+1
+
+    # Move upwards
+    while horz_sum*2 < vert_sum and worm_matrix[bounds[0],working_point[1]]:
+      bounds[0] = bounds[0]+1
+      new_point = bounds[0],working_point[1]
+      horz_sum = np.sum(worm_matrix[new_point[0],:])
+      vert_sum = np.sum(worm_matrix[:,new_point[1]])
+    horz_sum = np.sum(worm_matrix[working_point[0],:])
+    vert_sum = np.sum(worm_matrix[:,working_point[1]])
+    while horz_sum*2 < vert_sum and worm_matrix[bounds[1],working_point[1]]:
+      bounds[1] = bounds[1]-1
+      new_point = bounds[1],working_point[1]
+      horz_sum = np.sum(worm_matrix[new_point[0],:])
+      vert_sum = np.sum(worm_matrix[:,new_point[1]])
+      print(horz_sum,vert_sum)
+
+  return [working_point,(bounds[0],bounds[3]),(bounds[1],bounds[2])]
+
+def lazySkeleton(worm_matrix):
+  """
+  Currently, the most accurate method for creating a skeleton of the given worm.
+  Effectively does the same as betterMiddleSkel except sticking solely to pi/4 angles
+  and integer coordinates.
+
+  Finds the most isolated point on the worm and uses that as the 'front'.
+    Determines which combination of (1,0),(0,1),(1,1),(1,-1) goes through the least worm pixels
+    Moves pi/2 radians from that excluding the option closest to the prior angle.
+    Repeat until not on worm
+
+  Returns a list of points that compose a skeleton.
+  """
+  worm_matrix = np.pad(worm_matrix,[(1,),(1,)],mode='constant')
+
+  first_point = ci.findFront(worm_matrix)
+
+  bad_angle = badAngle(first_point,worm_matrix)
+  point_list = []
+  if min(bad_angle) == bad_angle[0]:
+    prior_direct = 2
+    next_point = (first_point[0]+1,first_point[1])
+    if not worm_matrix[next_point[0],next_point[1]]:
+      prior_direct = 6
+      next_point = (first_point[0]-1,first_point[1])
+  elif min(bad_angle) == bad_angle[1]:
+    prior_direct = 0
+    next_point = (first_point[0],first_point[1]+1)
+    if not worm_matrix[next_point[0],next_point[1]]:
+      prior_direct = 4
+      next_point = (first_point[0],first_point[1]-1)
+  elif min(bad_angle) == bad_angle[2]:
+    prior_direct = 3
+    next_point = (first_point[0]+1,first_point[1]-1)
+    if not worm_matrix[next_point[0],next_point[1]]:
+      prior_direct = 7
+      next_point = (first_point[0]-1,first_point[1]+1)
+  elif min(bad_angle) == bad_angle[3]:
+    prior_direct = 1
+    next_point = (first_point[0]+1,first_point[1]+1)
+    if not worm_matrix[next_point[0],next_point[1]]:
+      prior_direct = 5
+      next_point = (first_point[0]-1,first_point[1]-1)
+  point_list.append(next_point)
+  while worm_matrix[next_point[0],next_point[1]]:
+    direction_list = [(0,1),(1,1),(1,0),(1,-1),(0,-1),(-1,-1),(-1,0),(-1,1)]
+    distances = badAngle(next_point,worm_matrix)
+    direction = translateDistances(distances,prior_direct)
+    prior_direct = direction
+    change = direction_list[direction]
+    next_point = (next_point[0]+change[0],next_point[1]+change[1])
+    next_point = getMiddlePoint(next_point,direction,worm_matrix)
+    if next_point in point_list:
+      break
+    point_list.append(next_point)
+
+  #point_list.pop(-1)
+  point_list = [(point[1],point[0]) for point in point_list]
+  return point_list
+def getMiddlePoint(point,direction,worm_matrix):
+
+  test_change = [0,0]
+  direction2 = np.argmin(badAngle(point,worm_matrix))
+
+  if direction2 == 0:
+    test_change[1] = 1
+  elif direction2 == 1:
+    test_change[0] = 1
+  elif direction2 == 3:
+    test_change[0] = 1; test_change[1] = -1
+  elif direction2 == 2:
+    test_change[0] = 1; test_change[1] = 1
+  """
+  if direction in [0,4]:
+    test_change[0] = 1
+  elif direction in [1,5]:
+    test_change[1] = 1; test_change[0] = 1
+  elif direction in [2,6]:
+    test_change[1] = 1
+  elif direction in [3,7]:
+    test_change[1] = 1; test_change[0] = -1
+  """
+  test_point = [point[0],point[1]]
+  change_sum = 0
+  while worm_matrix[test_point[0],test_point[1]]:
+    test_point[0] += test_change[0]; test_point[1] += test_change[1]
+    change_sum += 1
+
+  test_point = [point[0],point[1]]
+  while worm_matrix[test_point[0],test_point[1]]:
+    test_point[0] -= test_change[0]; test_point[1] -= test_change[1]
+    change_sum -= 1
+  change_sum = int(change_sum/2)
+  return_point = (point[0] + test_change[0]*change_sum, point[1] + test_change[1]*change_sum)
+  return return_point
+def intersection(list1,list2):
+  return [direction for direction in list1 if direction in list2]
+  # That... should work?
+
+def translateDistances(distance_list,prior_direction):
+  if distance_list[0]==min(distance_list):
+    possible_directions = [2,6]
+  elif distance_list[1]==min(distance_list):
+    possible_directions = [0,4]
+  elif distance_list[3]==min(distance_list):
+    possible_directions = [1,5]
+  elif distance_list[2]==min(distance_list):
+    possible_directions = [3,7]
+
+  limited_directions = []
+  for i in range(-2,3):
+    v =prior_direction+i
+    if v<0:
+      v+=8
+    if v>7:
+      v-=8
+    limited_directions.append(v)
+  select_direct = intersection(possible_directions,limited_directions)
+  return select_direct[0]
+
+def badAngle(point,worm_matrix):
+  """
+  Used to find an angle that's a multiple of pi/4
+  """
+  x = point[0]; y = point[1]
+  #up/down, left/right, down-right, down-left
+  distances = [0,0,0,0]
+
+  # up down
+  yTest = y
+  while worm_matrix[x,yTest]:
+    yTest+=1
+
+  distances[0] = yTest - y
+  yTest = y
+  while worm_matrix[x,yTest]:
+    yTest-=1
+
+  distances[0] = distances[0] + y - yTest
+
+  xTest = x
+  while worm_matrix[xTest,y]:
+    xTest+=1
+
+  distances[1] = xTest - x
+  xTest = x
+  while worm_matrix[xTest,y]:
+    xTest-=1
+
+  distances[1] = distances[1] + x -xTest
+
+  upDif = 0
+  while worm_matrix[x+upDif,y+upDif]:
+    upDif+=1
+  distances[2] = np.sqrt(2)*upDif
+  upDif = 0
+  while worm_matrix[x-upDif,y-upDif]:
+    upDif+=1
+  distances[2] += np.sqrt(2)*upDif
+
+  upDif = 0
+  while worm_matrix[x+upDif,y-upDif]:
+    upDif+=1
+  distances[3] = np.sqrt(2)*upDif
+  upDif = 0
+  while worm_matrix[x-upDif,y+upDif]:
+    upDif+=1
+  distances[3] += np.sqrt(2)*upDif
+
+
+  return distances
+
 
 
 if __name__ == "__main__":
@@ -452,12 +670,22 @@ if __name__ == "__main__":
   #worm_dict, grayscale_matrix = ci.getWormMatrices("C:/Users/cdkte/Downloads/yolo3/Worm-Yolo3/Anno_5518.0/Annotated_344_856_5518.0_x1y1x2y2_720_413_738_467.png")
   #worm_dict, grayscale_matrix = ci.getWormMatrices("C:/Users/cdkte/Downloads/worm_segmentation/Annotated_4967/Annotated_344_688_4967.0_x1y1x2y2_919_834_944_848.png")
   #worm_dict, grayscale_matrix = ci.getWormMatrices("C:/Users/cdkte/Downloads/yolo3/Worm-Yolo3/Anno_5515.0/Annotated_344_1078_5515.0_x1y1x2y2_925_476_960_514.png")
-  worm_dict, grayscale_matrix = ci.getWormMatrices("C:/Users/cdkte/Downloads/yolo3/Worm-Yolo3/Anno_6158.0/Annotated_346_611_6158.0_x1y1x2y2_762_369_784_424.png")
-
+  #worm_dict, grayscale_matrix = ci.getWormMatrices("C:/Users/cdkte/Downloads/yolo3/Worm-Yolo3/Day10/Anno_10/Annotated_681_day10_simple_10_10_x1y1x2y2_440_782_462_828.png")
+  #worm_dict, grayscale_matrix = ci.getWormMatrices("C:/Users/cdkte/Downloads/yolo3/Worm-Yolo3/Anno_5518.0/Annotated_344_838_5518.0_x1y1x2y2_722_404_746_446.png")
+  worm_dict, grayscale_matrix = ci.getWormMatrices("C:/Users/cdkte/Downloads/yolo3/Worm-Yolo3/Anno_5518.0/Annotated_344_1088_5518.0_x1y1x2y2_723_418_738_454.png")
+  #worm_dict, grayscale_matrix = ci.getWormMatrices("C:/Users/cdkte/Downloads/yolo3/Worm-Yolo3/Day4/Anno_10/Annotated_681_day4_simple_11_10_x1y1x2y2_317_1025_351_1066.png")
+  worm_dict, grayscale_matrix = ci.getWormMatrices("C:/Users/cdkte/Downloads/yolo3/Worm-Yolo3/Day10/Anno_2/Annotated_681_day10_simple_159_2_x1y1x2y2_292_646_315_664.png")
 
   selectWorm = ci.findCenterWorm(worm_dict)
   plt.imshow(ci.createHighlight(selectWorm, grayscale_matrix))
-  #plt.plot(20,47,'o')
+  start = t.time()
+  pL= lazySkeleton(selectWorm)
+  stop = t.time()
+  print("Lazy",stop-start)
+  size = 0.5
+  for point in pL:
+    plt.plot(point[0],point[1],'bo',markersize=size)
+    size+=0.01
 
 
   start = t.time()
@@ -469,10 +697,10 @@ if __name__ == "__main__":
   next_p = fastMiddleSkel(selectWorm)
   stop = t.time()
   print(start-stop)
-  clustP = makeFractionedClusters(next_p,5)
+  clustP = makeFractionedClusters(pL,5)
   msv = 0.5
   for coord in next_p:
-    plt.plot(coord[0],coord[1],'go',ms=msv)
+    #plt.plot(coord[0],coord[1],'go',ms=msv)
     msv+=0.2
   msv = 1.0
   for coord in clustP:

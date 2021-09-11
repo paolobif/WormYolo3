@@ -15,8 +15,6 @@ Requires Tensorflow, cv2, and Pixellib
 DATA_PATH = "Anno_"
 MODEL_PATH = "C:/Users/cdkte/Downloads/worm_segmentation/model_folder/mask_rcnn_model.003-0.442767.h5"
 
-def run_function(tupl):
-  return tupl[0](tupl[1],tupl[2])
 
 def single_data(folder_path,img_name, function_list):
   """
@@ -29,7 +27,6 @@ def single_data(folder_path,img_name, function_list):
   #Correct img_name format: Annotated_344_469_4967.0_x1y1x2y2_909_835_966_855.png
   worm_dict, grayscale_matrix = ci.getWormMatrices(folder_path+"/"+img_name)
   lambda_func = lambda func: func(worm_dict, grayscale_matrix)
-  #annotated = parsed_name[0]
   try:
     select_worm = ci.findCenterWorm(worm_dict)
     parsed_name = img_name.split("_")
@@ -37,19 +34,15 @@ def single_data(folder_path,img_name, function_list):
     frame = parsed_name[2]
     worm_id = parsed_name[3]
     x1=parsed_name[5];y1=parsed_name[6];x2=parsed_name[7];y2=parsed_name[8].split(".")[0]
+
     outnumpy = np.array([frame,x1,y1,x2,y2,worm_id])
-    """
-    tup_list = []
-    for item in function_list:
-      tup_list.append((item,select_worm,grayscale_matrix))
-    with Pool(6) as p:
-      nextOutP = p.map(run_function,tup_list)
-    outnumpy = np.append(outnumpy,nextOutP)
-    """
+
     for func in function_list:
       outnumpy = np.append(outnumpy, func(select_worm, grayscale_matrix))
   except:
     print(folder_path+"/"+img_name + " is invalid")
+    if len(worm_dict) != 0:
+      raise Exception
     return None
   return outnumpy
 
@@ -67,8 +60,9 @@ def folder_data(folder_path, function_list):
 
   for i in range(len(files)):
     out_arr[i] = single_data(folder_path, files[i], function_list)
+
     if i in percent_check:
-      print(str(int(i*100/len(files))) + "% complete on folder "+folder_path)
+      print(str(int(i*100/len(files))) + "% comsingleete on folder "+folder_path)
 
   sorted_array = out_arr[np.argsort(out_arr[:, 5])]
   sorted_array = sorted_array[np.argsort(sorted_array[:, 0])]
@@ -185,10 +179,7 @@ def makeSkeleEstimate(folder_path, output_path):
     empty_image = np.zeros((max_height+1,max_width+1,3),'uint8')
     worm_dict, grayscale_matrix = ci.getWormMatrices(folder_path+"/"+file)
     selectWorm = ci.findCenterWorm(worm_dict)
-    #wormFront = ci.findFront(selectWorm)
-    #skelList = ci.createMiddleSkeleton((wormFront[1],wormFront[0]),selectWorm)
-    #skelList = sc.betterMiddleSkel(selectWorm)
-    skelList = sc.fastMiddleSkel(selectWorm)
+    skelList = sc.lazySkeleton(selectWorm)
     shortenSkel = sc.make_clusters(skelList)
     try:
       img = ci.makeSkelLines(selectWorm, grayscale_matrix, shortenSkel)
@@ -226,9 +217,8 @@ def makeSkeleVideo(folder_path, output_path):
       selectWorm = ci.findCenterWorm(worm_dict)
     except:
       continue
-    wormFront = ci.findFront(selectWorm)
-    skelList = ci.createMiddleSkeleton((wormFront[1],wormFront[0]),selectWorm)
-    #skelList = sc.betterMiddleSkel(selectWorm)
+
+    skelList = sc.lazySkeleton(selectWorm)
     shortenSkel = sc.make_clusters(skelList)
     try:
       img = ci.makeSkelLines(selectWorm, grayscale_matrix, shortenSkel)
