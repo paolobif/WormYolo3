@@ -7,6 +7,7 @@ import time as t
 import cv2
 from matplotlib import pyplot as plt
 from multiprocessing import Pool
+import all_image_analysis as aia
 
 """
 Requires Tensorflow, cv2, and Pixellib
@@ -59,10 +60,10 @@ def folder_data(folder_path, function_list):
   out_arr = np.empty(arr_shape)
 
   for i in range(len(files)):
-    out_arr[i] = single_data(folder_path, files[i], function_list)
+    out_arr[i] = aia.allSingleAnalysis(folder_path, files[i])
 
     if i in percent_check:
-      print(str(int(i*100/len(files))) + "% comsingleete on folder "+folder_path)
+      print(str(int(i*100/len(files))) + "% complete on folder "+folder_path)
 
   sorted_array = out_arr[np.argsort(out_arr[:, 5])]
   sorted_array = sorted_array[np.argsort(sorted_array[:, 0])]
@@ -236,13 +237,13 @@ def makeSkeleVideo(folder_path, output_path):
 if __name__=="__main__":
   first_angle = lambda worm_matrix, grayscale_matrix: sc.getSegmentAngle(worm_matrix,grayscale_matrix,point_num=10,angle_index = 1)
   last_angle = lambda worm_matrix, grayscale_matrix: sc.getSegmentAngle(worm_matrix,grayscale_matrix,point_num=7,angle_index = 4)
-  func_list = [ci.getArea, ci.getAverageShade,sc.getCmlAngle,sc.getCmlDistance,ci.getMidWidth,sc.getDiagonalNum]
+  func_list = [ci.getArea, ci.getAverageShade,sc.getCmlAngle,sc.getCmlDistance,ci.getMaxWidth,ci.getMidWidth,sc.getDiagonalNum]
   #test = single_data("Annotated_4967","Annotated_344_469_4967.0_x1y1x2y2_909_835_966_855.png", func_list)
   start = t.time()
   match_dict = {last_angle:"Last Angle"}
   #print(functionNames(func_list,match_dict))
-  #test2 = data_folder("C:/Users/cdkte/Downloads/6158.0", func_list,match_dict)
-  save_folder("Anno_5518.0","Anno_5518.0.csv", func_list,match_dict = match_dict)
+  test2 = folder_data("C:/Users/cdkte/Downloads/Anno_50.0/Anno_50.0", func_list)
+  #save_folder("Anno_5518.0","Anno_5518.0.csv", func_list,match_dict = match_dict)
   #makeSkeleEstimate("C:/Users/cdkte/Downloads/worm_segmentation/Annotated_4967","C:/Users/cdkte/Downloads/worm_segmentation/SkeletonVids/v2/4967.avi")
   stop = t.time()
   print(str(stop - start) + " seconds passed")

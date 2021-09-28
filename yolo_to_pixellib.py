@@ -52,15 +52,16 @@ def createImages(vid_path,csv_path,out_path):
     os.mkdir(out_path)
   np.set_printoptions(threshold=np.inf)
   vid = cv2.VideoCapture(vid_path)
-  video_id = os.path.basename(vid_path).strip('.avi')
+  video_id = os.path.basename(vid_path).strip('.avi').split("_")[0]
   total_frame_count = vid.get(cv2.CAP_PROP_FRAME_COUNT)
   all_frames = {}
   unique_worms = {}
-  for i in range(int(total_frame_count)):
-    all_frames[int(i)] = []
+  for i in range(int(total_frame_count)+1):
+    all_frames[float(i)] = []
   with open(csv_path) as csvfile:
     reader = csv.reader(csvfile, delimiter = ',')
     for row in reader:
+      row = [row[0],row[2],row[3],row[4],row[5],row[1]]
       frame = float(row[0])
       if frame <= total_frame_count:
         # frame, x1, y1, x2, y2, worm_id
@@ -103,11 +104,20 @@ def createImages(vid_path,csv_path,out_path):
       # Because this is a video, we have to use integers to pull pixels.
 
       if float(worm[5]) in working_worms:
-        x1 = int(worm[1])
-        y1 = int(worm[2])
-        x2 = int(worm[3])
-        y2 = int(worm[4])
-        im = frame[y1-PADDING: y2+PADDING, x1-PADDING: x2+PADDING]
+        x1 = int(worm[1]) - PADDING
+        y1 = int(worm[2]) - PADDING
+        x2 = int(worm[3]) + PADDING
+        y2 = int(worm[4]) + PADDING
+        if x1 <= 0:
+          x1 = 1
+        if y1 <= 0:
+          y1 = 1
+        if x2 > width:
+          x2 = width
+        if y2 > height:
+          y2 = height
+
+        im = frame[y1: y2, x1: x2]
         data = Image.fromarray(im)
         file_name = "_".join([str(video_id),str(frame_cur),str(worm[5]),"x1y1x2y2",str(x1),str(y1),str(x2),str(y2)])+".png"
         data.save(out_path+"/"+str(worm[5])+"/"+file_name)
@@ -124,18 +134,32 @@ def createAnnotatedFolders(folder_path):
   total_length = len(all_files)
   multi_list = []
   for file in all_files:
+    #"""
     i+=1
+    print(i,"started out of",total_length)
     if os.path.isdir(folder_path+"/"+file) and file.split("_")[0]!=DATA_PATH:
+
+      first_input = folder_path+"/"+file
+      second_input = MODEL_PATH
+      third_input = folder_path+"/"+DATA_PATH+"_"+file
+      os.system("cd "+os.path.dirname(os.path.abspath(__file__)))
+      os.system("python3 segmentation.py "+first_input+" "+second_input+" "+third_input)
+    	#seg.annotateFolder(first_input,second_input,third_input)
+    """
+    if os.path.isdir(folder_path+"/"+file) and file.split("_")[0]!=DATA_PATH:
+
       p = multiprocessing.Process(target = seg.annotateFolder, args=(folder_path+"/"+file,MODEL_PATH,folder_path+"/"+DATA_PATH+"_"+file))
       p.start()
+      p.join()
       multi_list.append(p)
     print(i," out of ",total_length," started")
+
     if len(multi_list) >= PROCESS_NUM:
       for j in range(len(multi_list)):
         proc = multi_list[0]
         proc.join()
         multi_list.remove(proc)
-
+    """
 def gatherAllData(folder_path, function_list):
   """
   Collects the information from individual images and returns it as a matrix.
@@ -211,41 +235,41 @@ if __name__ == "__main__":
     avi_path = sys.argv[1]
   except IndexError:
     print("No AVI path detected. Using default path")
-    avi_path = "C:/Users/cdkte/Downloads/Mot_Single/206.avi"
+    avi_path = "C:/Users/cdkte/Downloads/641_day4_simple.avi"
 
   try:
     csv_path = sys.argv[2]
   except IndexError:
     print("No CSV path detected. Using default path")
-    csv_path = "C:/Users/cdkte/Downloads/Mot_Single/206_sort.csv"
+    csv_path = "C:/Users/cdkte/Downloads/641_day4_simple_sort.csv"
 
   try:
     output_path = sys.argv[3]
   except:
     print("No output path detected")
-    output_path = "206"
+    output_path = "C:/641"
 
   try:
-    MODEL_PATH = sys.argv[3]
+    MODEL_PATH = sys.argv[4]
   except IndexError:
     print("No model: Using default model")
 
   try:
-    MIN_FRAMES = int(sys.argv[4])
+    MIN_FRAMES = int(sys.argv[5])
   except IndexError:
     print("No minimum number of frames: Using default value =",MIN_FRAMES)
   except ValueError:
     print("Invalid value for minimum number of frames: Using default value =",MIN_FRAMES)
 
   try:
-    DELETE_FRAMES = bool(sys.argv[5])
+    DELETE_FRAMES = bool(sys.argv[6])
   except ValueError:
     print("Invalid bool value for deleting frames: Using default setting")
   except IndexError:
     print("No bool for deleting frames: Using default setting")
 
   try:
-    PROCESS_NUM = int(sys.argv[6])
+    PROCESS_NUM = int(sys.argv[7])
   except ValueError:
     print("Invalid int value for number of Tensorflow processes: Using default setting")
   except IndexError:

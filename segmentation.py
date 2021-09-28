@@ -4,6 +4,7 @@ from pixellib.custom_train import instance_custom_training
 from pixellib.semantic import semantic_segmentation
 from pixellib.instance import custom_segmentation
 import image_analysis as ia
+import sys
 
 """
 Requires Tenserflow and Pixellib
@@ -87,7 +88,10 @@ if __name__ == "__main__":
   #file_folder.remove(file_folder[-1])
   #file_folder = "/".join(file_folder)
   #os.chdir(file_folder)
-  trainFromFolder("C:/Users/cdkte/Downloads/worm_segmentation/Training_Data","C:/Users/cdkte/Downloads/worm_segmentation/model_folder")
-  #annotateFolder("4967.0","models/mask_rcnn_model.002-0.633895.h5","Annotated_4967")
+  #trainFromFolder("C:/Users/cdkte/Downloads/worm_segmentation/Training_Data","C:/Users/cdkte/Downloads/worm_segmentation/model_folder")
+  folder_path = sys.argv[1]
+  model_path = sys.argv[2]
+  out_path = sys.argv[3]
+  annotateFolder(folder_path,model_path,out_path)
   #annotateSingle("4967.0/344_470_4967.0_x1y1x2y2_905_834_966_854.png", "models/mask_rcnn_model.002-0.633895.h5", "edited.png")
   #annotateVideo("models/mask_rcnn_model.001-0.565890.h5")

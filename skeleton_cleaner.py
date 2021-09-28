@@ -228,7 +228,7 @@ def getSegmentAngle(worm_matrix, grayscale_matrix, point_num = 10, angle_index =
   skelSimple = makeFractionedClusters(skelList, point_num)
   return getAngle(skelSimple[angle_index],skelSimple[angle_index+1],skelSimple[angle_index+2])
 
-def getCmlAngle(worm_matrix, grayscale_matrix, worm_path=None, point_num = 5):
+def getCmlAngle(worm_matrix, grayscale_matrix, worm_path=None, point_num = 7):
   """
   Segments the worm into point_num clusters, then finds the total change in slope.
   """
@@ -246,7 +246,7 @@ def getCmlDistance(worm_matrix, grayscale_matrix, worm_path=None):
   """
   wormFront = ci.findFront(worm_matrix)
   skelList = ci.createMiddleSkeleton((wormFront[1],wormFront[0]),worm_matrix)
-  skelList = fastMiddleSkel(worm_matrix)
+  skelList = lazySkeleton(worm_matrix)
   sum = 0
   for i in range(0,len(skelList)-1,1):
     sum += ci.pointDistance(skelList[i],skelList[i+1])
@@ -504,10 +504,11 @@ def lazySkeleton(worm_matrix):
 
   Returns a list of points that compose a skeleton.
   """
-  worm_matrix = np.pad(worm_matrix,[(1,),(1,)],mode='constant')
+  height, width = worm_matrix.shape
+  if np.any(worm_matrix[0,:]) or np.any(worm_matrix[:,0]) or np.any(worm_matrix[:,-1]) or np.any(worm_matrix[-1,:]):
+    worm_matrix = np.pad(worm_matrix,[(1,),(1,)],mode='constant')
 
   first_point = ci.findFront(worm_matrix)
-
   bad_angle = badAngle(first_point,worm_matrix)
   point_list = []
   if min(bad_angle) == bad_angle[0]:
@@ -544,7 +545,19 @@ def lazySkeleton(worm_matrix):
     next_point = (next_point[0]+change[0],next_point[1]+change[1])
     next_point = getMiddlePoint(next_point,direction,worm_matrix)
     if next_point in point_list:
-      break
+      if len(point_list) > 5:
+        break
+      else:
+        if worm_matrix[next_point[0]+1,next_point[1]]:
+          next_point = (next_point[0]+1,next_point[1])
+        elif worm_matrix[next_point[0]-1,next_point[1]]:
+          next_point = (next_point[0]-1,next_point[1])
+        elif worm_matrix[next_point[0],next_point[1]+1]:
+          next_point = (next_point[0],next_point[1]+1)
+        elif worm_matrix[next_point[0],next_point[1]-1]:
+          next_point = (next_point[0],next_point[1]-1)
+        else:
+          break
     point_list.append(next_point)
 
   #point_list.pop(-1)
@@ -674,7 +687,8 @@ if __name__ == "__main__":
   #worm_dict, grayscale_matrix = ci.getWormMatrices("C:/Users/cdkte/Downloads/yolo3/Worm-Yolo3/Anno_5518.0/Annotated_344_838_5518.0_x1y1x2y2_722_404_746_446.png")
   worm_dict, grayscale_matrix = ci.getWormMatrices("C:/Users/cdkte/Downloads/yolo3/Worm-Yolo3/Anno_5518.0/Annotated_344_1088_5518.0_x1y1x2y2_723_418_738_454.png")
   #worm_dict, grayscale_matrix = ci.getWormMatrices("C:/Users/cdkte/Downloads/yolo3/Worm-Yolo3/Day4/Anno_10/Annotated_681_day4_simple_11_10_x1y1x2y2_317_1025_351_1066.png")
-  worm_dict, grayscale_matrix = ci.getWormMatrices("C:/Users/cdkte/Downloads/yolo3/Worm-Yolo3/Day10/Anno_2/Annotated_681_day10_simple_159_2_x1y1x2y2_292_646_315_664.png")
+  #worm_dict, grayscale_matrix = ci.getWormMatrices("C:/Users/cdkte/Downloads/yolo3/Worm-Yolo3/Day10/Anno_2/Annotated_681_day10_simple_159_2_x1y1x2y2_292_646_315_664.png")
+  #worm_dict, grayscale_matrix = ci.getWormMatrices("C:/Users/cdkte/Downloads/yolo3/Worm-Yolo3/641/Anno_1.0/Annotated_641_53_1.0_x1y1x2y2_294_208_373_254.png")
 
   selectWorm = ci.findCenterWorm(worm_dict)
   plt.imshow(ci.createHighlight(selectWorm, grayscale_matrix))

@@ -468,7 +468,7 @@ def getMidWidth(worm_matrix,grayscale_matrix, path=None):
   #wormFront = findFront(worm_matrix)
   #skelList = createMiddleSkeleton((wormFront[1],wormFront[0]),worm_matrix)
   #skelList = sc.betterMiddleSkel(worm_matrix)
-  skelList = sc.fastMiddleSkel(worm_matrix)
+  skelList = sc.lazySkeleton(worm_matrix)
   width_point = {}
   # Find Mid Width
   point = skelList[round(len(skelList)/2)]
