@@ -167,7 +167,7 @@ def gatherAllData(folder_path, function_list):
   all_files = os.listdir(folder_path)
   i = 0
   total_length = len(all_files)/2
-  all_data=np.empty((0,6+len(function_list)))
+  all_data=np.empty((0,6+len(function_list)+10))
   for file in all_files:
 
     if os.path.isdir(folder_path+"/"+file) and file.split("_")[0] == DATA_PATH:
@@ -184,6 +184,7 @@ def storeAllData(folder_path, function_list, match_dict = {}):
   function_list storing the results to a csv file.
   """
   titles =   titles = ia.functionNames(function_list,match_dict)
+  titles += "point1_x,point1_y,point2_x,point2_y,point3_x,point3_y,point4_x,point4_y,point5_x,point5_y"
   all_data = gatherAllData(folder_path, function_list)
   folder_name = os.path.basename(folder_path)
 
@@ -274,6 +275,7 @@ if __name__ == "__main__":
     print("Invalid int value for number of Tensorflow processes: Using default setting")
   except IndexError:
     print("No int for number of Tensorflow procceses: Using default setting")
+
 
 
 
