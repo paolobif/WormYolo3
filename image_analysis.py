@@ -55,7 +55,7 @@ def folder_data(folder_path, function_list):
   function_list: The list of functions to be run on each file
   """
   files = os.listdir(folder_path)
-  arr_shape = (len(files), 6+len(function_list))
+  arr_shape = (len(files), 6+len(function_list)+10)
   percent_check = [round(len(files)/4), round(len(files)/2), round(3*len(files)/4)]
   out_arr = np.empty(arr_shape)
 
