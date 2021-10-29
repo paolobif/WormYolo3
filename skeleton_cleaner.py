@@ -57,6 +57,7 @@ class cluster():
     point_list = self.point_list + other_point.point_list
 
     total_distance = self.cml_distance + other_point.cml_distance + ci.pointDistance(self.point_list[-1], other_point.point_list[0])
+
     return cluster(point_list,total_size,total_distance)
 
 def makeFractionedClusters(point_list, cluster_num):
@@ -70,7 +71,11 @@ def makeFractionedClusters(point_list, cluster_num):
     if not point == first_point:
       max_cluster = max_cluster.connect(cluster([point]))
     cluster_list.append(cluster([point]))
-  section_length = round(max_cluster.cml_distance) / (cluster_num - 1)
+  try:
+    section_length = round(max_cluster.cml_distance) / (cluster_num - 1)
+  except:
+    section_length = 0
+
   new_list = []
   prev_cluster = cluster_list[0]
   clusterV = cluster_list[0]

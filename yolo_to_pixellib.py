@@ -34,10 +34,17 @@ MODEL_PATH = "C:/Users/cdkte/Downloads/worm_segmentation/model_folder/mask_rcnn_
 PROCESS_NUM = 1
 
 # Delete images and annotated images after creating the video
-DELETE_FRAMES = False
+DELETE_FRAMES = True
 
-# The minimum number of frames for a unique worm for it to be tracked
-MIN_FRAMES = 45
+# The minimum number of frames for a unique worm to appear in for it to be tracked
+MIN_FRAMES = 20
+
+# Number of frames to move at a time (I recommend reducing min_frames when you increase this)
+# 1 skips no frames, 2 takes every second frame
+SKIP_FRAMES = 2
+
+# Skip creation and annotation of images
+SKIP_ANNO = False
 
 def createImages(vid_path,csv_path,out_path):
   """
@@ -56,31 +63,35 @@ def createImages(vid_path,csv_path,out_path):
   total_frame_count = vid.get(cv2.CAP_PROP_FRAME_COUNT)
   all_frames = {}
   unique_worms = {}
-  for i in range(int(total_frame_count)+1):
+  for i in range(0,int(total_frame_count)+1,SKIP_FRAMES):
     all_frames[float(i)] = []
   with open(csv_path) as csvfile:
     reader = csv.reader(csvfile, delimiter = ',')
     for row in reader:
+
       row = [row[0],row[2],row[3],row[4],row[5],row[1]]
       frame = float(row[0])
+      if not (frame%SKIP_FRAMES == 0):
+        continue
       if frame <= total_frame_count:
         # frame, x1, y1, x2, y2, worm_id
         all_frames[frame].append([frame,float(row[1]),float(row[2]),float(row[3]),float(row[4]),float(row[5])])
         if float(row[5]) not in unique_worms:
           unique_worms[float(row[5])] = 1
         else:
+          if float(row[5]) == 81.0:
+            pass
           unique_worms[float(row[5])] += 1
       else:
         print("Invalid Frame")
         break
-
   working_worms = []
   for i in unique_worms:
     if not os.path.exists(out_path+"/"+str(i)):
       if unique_worms[i]>=MIN_FRAMES:
         working_worms.append(i)
         os.mkdir(out_path+"/"+str(i))
-  for i in range(int(total_frame_count)):
+  for i in range(0,int(total_frame_count)):
     ret, frame = vid.read()
     frame_count = vid.get(cv2.CAP_PROP_POS_FRAMES)
     if frame_count == 1:
@@ -220,8 +231,9 @@ def runAllPixellib(vid_path,csv_path,folder_path):
   folder_path: The path to store outputs
   """
   start = t.time()
-  createImages(vid_path,csv_path,folder_path)
-  createAnnotatedFolders(folder_path)
+  if not SKIP_ANNO:
+    createImages(vid_path,csv_path,folder_path)
+    createAnnotatedFolders(folder_path)
   func_list = [ci.getArea, ci.getAverageShade,sc.getCmlAngle,sc.getCmlDistance,ci.getMaxWidth,ci.getMidWidth,sc.getDiagonalNum]
   storeAllData(folder_path, func_list)
   storeVideos(folder_path)
@@ -280,9 +292,9 @@ if __name__ == "__main__":
 
 
 
-
+  createImages("C:/Users/cdkte/Downloads/641_day4_simple.avi","C:/Users/cdkte/Downloads/641_day4_simple_sort.csv","C:/Users/cdkte/Downloads/test_skip2")
   #storeAllData("206",func_list)
-  runAllPixellib(avi_path,csv_path,output_path)
+  #runAllPixellib(avi_path,csv_path,output_path)
   #storeVideos("206")
   #screateAnnotatedFolders("Day10")
 
