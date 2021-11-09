@@ -195,7 +195,7 @@ def storeAllData(folder_path, function_list, match_dict = {}):
   function_list storing the results to a csv file.
   """
   titles =   titles = ia.functionNames(function_list,match_dict)
-  titles += "point1_x,point1_y,point2_x,point2_y,point3_x,point3_y,point4_x,point4_y,point5_x,point5_y"
+  titles += ",point1_x,point1_y,point2_x,point2_y,point3_x,point3_y,point4_x,point4_y,point5_x,point5_y"
   all_data = gatherAllData(folder_path, function_list)
   folder_name = os.path.basename(folder_path)
 

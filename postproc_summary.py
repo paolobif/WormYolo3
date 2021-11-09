@@ -267,4 +267,16 @@ if __name__ == "__main__":
   #print(combineDays(["C:/Users/cdkte/Downloads/line_data/641_day12.csv","C:/Users/cdkte/Downloads/line_data/641_day8.csv"]))
   #print(direct_folder("C:/Users/cdkte/Downloads/days"))
   #line_fit("C:/Users/cdkte/Downloads/days/Train","C:/Users/cdkte/Downloads/days/Test")
-  create_csv("C:/Users/cdkte/Downloads/days/Train","days4to12.csv")
+  try:
+    fold_path = sys.argv[1]
+  except IndexError:
+    print("No folder path detected.")
+    raise
+
+  try:
+    out_csv = sys.argv[2]
+  except IndexError:
+    print("No csv path detected.")
+    raise
+
+  create_csv(fold_path, out_csv)
