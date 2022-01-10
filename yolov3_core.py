@@ -71,7 +71,7 @@ class YoloModelLatest():
         print("Model Succesfully Loaded")
 
     ### PASSES LIST OF FRAMES THROUGH MODEL AND RETURNS BOUNDING BOXES
-    def pass_model(self, im, cut_size=416):
+    def pass_model(self, im, cut_size=416, passes: int = 4):
         """ Takes image array and cut_size as arg. Cut size is the natural dimension of the img cut.
         Returns outputs with list of information on each bounding box in the image. """
         #print(f"number of slices bring processed: {len(dataset_dict)}")
@@ -82,7 +82,7 @@ class YoloModelLatest():
         #print("\nPerforming object detection:")
         prev_time = time.time()
 
-        dataset = CustomLoadImages(im, cut_size=cut_size, img_size=self.img_size) # key, image
+        dataset = CustomLoadImages(im, cut_size=cut_size, img_size=self.img_size, passes=passes) # key, image
         input_img = torch.zeros((1, 3, self.img_size, self.img_size), device=self.device)
         _ = self.model(input_img.float())
 
@@ -203,18 +203,27 @@ class YoloToCSV():
 # creates maping generator objectls
 class MapGenerator():
     """ Class generates a map grid with the specified cuts
-        Takes an imput of either image or xy tuple"""
-    def __init__(self, xy_shape, cut_size):
+        Takes an imput of either image or xy tuple
+
+    Args:
+        xy_shape (img, tuple): size of the image x,y or image itself.
+        cut_size (int): how large you want the cuts to be.
+        passes (int) optional: how much redundancy you want.
+    """
+    def __init__(self, xy_shape, cut_size, passes: int = 4):
         self.cut_size = cut_size
         if type(xy_shape) != tuple:
-            #print("input is an np img array")
+            # print("input is an np img array")
             self.xy_shape = (xy_shape.shape[1], xy_shape.shape[0])
-            #self.x_shape = img_xy.shape[1]
+            # self.x_shape = img_xy.shape[1]
         else:
             self.xy_shape = xy_shape
-            #self.y_shape = img_xy[1]
+            # self.y_shape = img_xy[1]
 
-        self.paired_grid = [] # redundant....
+        self.paired_grid = []  # redundant....
+
+        assert(1 <= passes <= 4)
+        self.passes = passes
 
         self.map_grid = self.generate_complete_map_grid()
 
@@ -227,13 +236,24 @@ class MapGenerator():
 
         shiftx = int(self.cut_size/2)
         shifty = int(self.cut_size/2)
+
         # Processes each of the 4 cuts neccesary to cover all the areas.
-        pass1 = self.map_ar(xy_shape, cut_size, (0,0))
-        pass2 = self.map_ar(xy_shape, cut_size, (shiftx, shifty))
-        pass3 = self.map_ar(xy_shape, cut_size, (shiftx, 0))
-        pass4 = self.map_ar(xy_shape, cut_size, (0, shifty))
-        self.map_grids = [pass1, pass2, pass3, pass4]
-        #self.map_grids = [pass1]
+        map_grids = []
+        if self.passes >= 1:
+            pass1 = self.map_ar(xy_shape, cut_size, (0, 0))
+            map_grids.append(pass1)
+        if self.passes >= 2:
+            pass2 = self.map_ar(xy_shape, cut_size, (shiftx, shifty))
+            map_grids.append(pass2)
+        if self.passes >=3:
+            pass3 = self.map_ar(xy_shape, cut_size, (shiftx, 0))
+            map_grids.append(pass3)
+        if self.passes == 4:
+            pass4 = self.map_ar(xy_shape, cut_size, (0, shifty))
+            map_grids.append(pass4)
+
+        assert(len(map_grids) == self.passes)
+        self.map_grids = map_grids
 
         complete_map_grid = []
         for map_grid in self.map_grids:
@@ -263,12 +283,12 @@ class MapGenerator():
 
         # determines the range of each cut.
         second_pass_shift = (int(cut_size/2), int(cut_size/2))
-        x_max_range = x_size + cut_size if shiftxy == (0,0) or shiftxy == second_pass_shift else x_size
-        y_max_range = y_size + cut_size if shiftxy == (0,0) or shiftxy == second_pass_shift else y_size
+        x_max_range = x_size + cut_size if shiftxy == (0, 0) or shiftxy == second_pass_shift else x_size
+        y_max_range = y_size + cut_size if shiftxy == (0, 0) or shiftxy == second_pass_shift else y_size
 
         for x in range(0+x_shift, x_max_range, cut_size):
             for y in range(0+y_shift, y_max_range, cut_size):
-                map_ar.append([x,y])
+                map_ar.append([x, y])
 
         return map_ar
 
@@ -279,13 +299,13 @@ class MapGenerator():
         y_slice_count = only_xs.count(only_xs[0])
 
         paired_corners = []
-        ## pair index is the matching corner to point
+        # pair index is the matching corner to point
         for i, point in enumerate(map_grid):
             pair_index = i+y_slice_count+1
 
             # if the pair index is not the last of each chunck or the last group do ...
             if (i+1) % y_slice_count != 0 and pair_index <= len(map_grid):
-                #print(i, pair_index, f"division:{(i+1)%y_slice_count}")
+                # print(i, pair_index, f"division:{(i+1)%y_slice_count}")
                 pair = map_grid[pair_index]
                 paired_corners.append([tuple(point), tuple(pair)])
             else:
@@ -295,14 +315,20 @@ class MapGenerator():
 
 
 class CustomLoadImages(MapGenerator):
-    def __init__(self, img, cut_size=416, img_size=608):
+    def __init__(self, img, cut_size=416, img_size=608, passes: int = 4):
         """ Takes image array. Cut size which is the size of the slice. Img size is the
         size of the image that it is upscaled to, before entering model.
 
         The map array is generated dictating where the cuts will be made.
         Everytime _getitem__ is called, the key(xcord, ycord) of the cut and cut img is returned.
+
+        Args:
+            img (array): array for the image
+            cut_size (int): size of the image cuts
+            passes (int): redundancy in passes for processing image. Less faster.
         """
-        MapGenerator.__init__(self, img, cut_size)
+
+        MapGenerator.__init__(self, img, cut_size, passes=passes)
         self.img = img
         self.img_size = img_size
         self.cut_size = cut_size
@@ -315,7 +341,7 @@ class CustomLoadImages(MapGenerator):
         x1, y1 = x1y1
         x2, y2 = x2y2
         img_crop = self.img[y1:y2, x1:x2]
-        #print(x1y1, x2y2, f"shape {img_crop.shape}")
+        # print(x1y1, x2y2, f"shape {img_crop.shape}")
         # add padding if the image is not sized correctly
         if img_crop.shape[:2] != (self.cut_size, self.cut_size):
             img_crop = self.add_padding_to_square_img(img_crop, self.cut_size)
