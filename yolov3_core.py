@@ -12,6 +12,8 @@ import datetime
 import cv2
 import tqdm
 import statistics
+import pandas as pd
+import numpy as np
 from collections import defaultdict
 
 import torch
@@ -128,7 +130,6 @@ class YoloModelLatest():
             #else:
                 #print(f"{img_i} Image: {key} --- worms: 0")
         return(outputs)
-        #return(outputs)
 
     @staticmethod
     def rescale_bboxes(key, output):
@@ -144,7 +145,62 @@ class YoloModelLatest():
         return([ax1, ay1, ax2, ay2, conf, cls_conf])
 
 
-## creates maping generator objectls
+class YoloToCSV():
+    """ Uses YoloModelLatest to process images and then save
+    those outputs as a csv file.
+
+    """
+    def __init__(self, model, img_path, full=False, nms=0.1):
+        """
+        Args:
+            model is a model object from YoloModelLatest class.
+            img_path is the complete path to the image or the image itself.
+        """
+        self.model = model
+        self.img_path = img_path
+        self.img = cv2.imread(img_path)
+        self.full = full  # If true will use the full output data.
+        self.nms = nms  # Non max supression overlap threshold.
+
+    def get_annotations(self):
+        # pass through img processor. Image and cut size.
+        outputs = self.model.pass_model(self.img)
+        outputs = non_max_suppression_post(outputs, overlapThresh=self.nms)
+        self.outputs = outputs
+        return outputs
+
+    def write_to_csv(self, out_path):
+        """Writes outputs to CSV at out_path"""
+        img_name = os.path.basename(self.img_path)
+        outputs = self.get_annotations()
+
+        # If full is true -> include the confidence in output.
+        df = self.pd_for_csv(outputs, full=self.full, img_name=img_name)
+
+        df.to_csv(out_path, mode='a', header=True, index=None)
+        print(f"Wrote {img_name} to csv!")
+
+    # creates pandas df for easy csv saving.
+    @staticmethod
+    def pd_for_csv(outputs, full=False, img_name="name"):
+        """Converts tensors to list that is
+        added to pd df for easy writing to csv"""
+        csv_outputs = []
+        for output in outputs:
+            x1, y1, x2, y2, conf, cls_conf = output
+            w = abs(x2-x1)
+            h = abs(y2-y1)
+            if full:
+                csv_outputs.append([img_name, x1, y1, w, h, "worm",
+                                    conf, cls_conf])
+            else:
+                csv_outputs.append([img_name, x1, y1, w, h, "worm"])
+
+        out_df = pd.DataFrame(csv_outputs)
+        return out_df
+
+
+# creates maping generator objectls
 class MapGenerator():
     """ Class generates a map grid with the specified cuts
         Takes an imput of either image or xy tuple"""
@@ -382,8 +438,11 @@ def draw_from_output(img, outputs, col=(255,255,0), text=None):
     """ Img is cv2.imread(img) and outputs are (x1, y1, x2, y2, conf, cls_conf)
     Returns the image with all the boudning boxes drawn on the img """
     for output in outputs:
-        output = [int(n) for n in output]
-        x1, y1, x2, y2, conf, cls_conf = output
+        # output = [float(n) for n in output]
+        x1, y1, x2, y2, conf, _ = output
+        x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
         cv2.rectangle(img, (x1,y1), (x2,y2), col, 2)
+
         if text is not None:
-            cv2.putText(img, text, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, col, 2)
+            print(conf)
+            cv2.putText(img, str(conf), (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, col, 2)
