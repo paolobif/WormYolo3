@@ -1,4 +1,8 @@
 from __future__ import division
+from ctypes import Array
+from typing import Tuple
+
+from numpy.core.multiarray import array
 
 from models import *
 from utils.utils import *
@@ -143,6 +147,120 @@ class YoloModelLatest():
         ay1, ay2 = y1 + mapY, y2 + mapY
 
         return([ax1, ay1, ax2, ay2, conf, cls_conf])
+
+
+class ImageCircleCrop():
+    """Takes the full image from worbot and identifies the
+    circle for the well. From there crops the image to only include the
+    well and pads the rest of the image with black.
+
+    Args:
+
+    Returns:
+        [type]: [description]
+    """
+    minDist = 500
+    param1 = 30  # 500
+    param2 = 150  # 200 #smaller value-> more false circles
+    minRadius = 400
+    maxRadius = 700  # 10
+    extra = 50  # Number of pixles to increase radius by
+
+    frame_count = 0  # Tracks circle update.
+
+    def __init__(self, interval):
+        self.interval = interval
+        self.circle = None
+        self.prev_circle = None
+
+    def update(self, img):
+        """Takes an image and crops it based on circle.
+        If interval requirement is met, will recalculate the circle.
+
+        Args:
+            img (array, string): image array or path to image.
+        """
+        if type(img) == str:
+            img = cv2.imread(img)
+            # Check if arg is path or string.
+
+        if not self.frame_count % self.interval:
+            # Update circle
+            self.find_circle(img)
+
+        result = self.crop_img(img)
+        self.frame_count += 1
+        return result
+
+    def crop_img(self, img):
+        """Crops the image and masks it appropriately. Returns masked image.
+        If there is no circle just returns original image."""
+        yMax = img.shape[0]
+        xMax = img.shape[1]
+
+        if self.circle is not None:
+            # First mask so circle center doesn't need to be adjusted.
+            masked_image = self.mask_image(img, self.circle)
+            x, y, r = self.circle
+            # Make sure cut size doesn't go out of range of image.
+            x1, y1 = [max(x-r, 0), max(y-r, 0)]
+            x2, y2 = [min(x+r, xMax), min(y+r, yMax)]
+            result = masked_image[y1:y2, x1:x2]
+
+            return result
+
+        else:
+            # If no circle is found. Keep looking.
+            self.find_circle(img)
+            return img
+
+    def find_circle(self, img):
+        """Takes an image and identifies circle. Will pick largest one.
+
+        Args:
+            img (array): image array or path to image
+
+        Returns:
+            tuple, None: (center x, center y, radius). None if no circles.
+        """
+
+        gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        circles = cv2.HoughCircles(gray_img, cv2.HOUGH_GRADIENT, 1,
+                                   self.minDist, param1=self.param1,
+                                   param2=self.param2,
+                                   minRadius=self.minRadius,
+                                   maxRadius=self.maxRadius)
+        # Find largest circle by radius
+
+        if circles is not None:
+            idx = np.argmax(circles[0, :, 2])
+            circle = circles[0, idx].astype(int)
+
+            self.prev_circle = self.circle
+            self.circle = (circle[0], circle[1], circle[2] + self.extra)
+            return self.circle
+
+        else:
+            self.circle = self.prev_circle
+            return self.circle
+
+    @staticmethod
+    def mask_image(img, circle):
+        """Takes image and circle and masks everything outside the circle.
+
+        Args:
+            img (array): image you want to mask.
+            circle (tuple): (center x, center y, radius)
+
+        Returns:
+            array: the masked image.
+        """
+        x, y, r = circle
+        mask = np.zeros_like(img)
+        cv2.circle(mask, (x, y), r, (255, 255, 255), -1)
+        # apply mask
+        result = cv2.bitwise_and(img, mask)
+        return result
 
 
 class YoloToCSV():
@@ -470,5 +588,5 @@ def draw_from_output(img, outputs, col=(255,255,0), text=None):
         cv2.rectangle(img, (x1,y1), (x2,y2), col, 2)
 
         if text is not None:
-            print(conf)
-            cv2.putText(img, str(conf), (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, col, 2)
+            cv2.putText(img, f"{round(float(conf), 3) : }{text}",
+                        (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, col, 2)
