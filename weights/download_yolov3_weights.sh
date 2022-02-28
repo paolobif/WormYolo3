@@ -19,6 +19,14 @@
 # mv yolov3-tiny.conv.15 ../
 
 # new method
-python3 -c "from models import *;
-attempt_download('weights/yolov3.pt');
-attempt_download('weights/yolov3-spp.pt')"
+# python3 -c "from models import *;
+# attempt_download('weights/yolov3.pt');
+# attempt_download('weights/yolov3-spp.pt')"
+
+
+weights=https://www.dropbox.com/sh/xx4kalzjxrkej26/AABzftltaYpoQiyNhkwQQOqCa?dl=1
+
+echo "downloading weights"
+wget -O ./weights/weights.zip $weights
+unzip ./weights/weights.zip -d ./weights
+
