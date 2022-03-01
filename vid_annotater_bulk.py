@@ -140,8 +140,6 @@ if __name__ == "__main__":
         for _ in range(total_frame_count - 1):
             ret, frame = vid.read()
             frame_count = vid.get(cv2.CAP_PROP_POS_FRAMES)
-            if not frame:
-                continue
 
             if frame_count == 1:
                 height, width, channels = frame.shape
