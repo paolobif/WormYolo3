@@ -20,7 +20,7 @@ class YoloToCSV():
         #self.img_path = img_path
         self.img = frame
         self.img_path = frame_count
-        
+
     def get_annotations(self):
         # pass through img processor. Image and cut size.
         img_size = 416
@@ -77,7 +77,7 @@ class YoloToCSV():
         track_bbs_ids = mot_tracker1.update(boxes_xyxy)
         return(track_bbs_ids)
 
-    
+
     def pd_for_sort_output(self, outputs, img_name = "name"):
         csv_outputs = []
         for worm in outputs:
@@ -87,7 +87,7 @@ class YoloToCSV():
             x2 = worm[2]
             y2 = worm[3]
             name = worm[4]
-            csv_outputs.append([img_name, name, x1, y1 ,x2, y2]) 
+            csv_outputs.append([img_name, name, x1, y1 ,x2, y2])
         out_df = pd.DataFrame(csv_outputs)
         return out_df
 
@@ -101,14 +101,14 @@ if __name__ == "__main__":
     VID_FOLD_PATH = sys.argv[1]
     OUT_FOLD_PATH = sys.argv[2]
 
-    
+
     vid_list = os.listdir(VID_FOLD_PATH)
     print(vid_list)
     for vid_name in vid_list:
-    
+
         VID_PATH = os.path.join(VID_FOLD_PATH, vid_name)
         OUT_PATH = OUT_FOLD_PATH
-        
+
         ## Declare settings for nn
         ## make sure to change these prarameters for your work enviroment
         settings = {'model_def': "cfg/yolov3-spp-1cls.cfg",
@@ -137,9 +137,12 @@ if __name__ == "__main__":
         out_video_path = f"{OUT_PATH}/{os.path.basename(VID_PATH).strip('.avi')}_yolo.avi"
 
 
-        while (1):
+        for _ in range(total_frame_count - 1):
             ret, frame = vid.read()
             frame_count = vid.get(cv2.CAP_PROP_POS_FRAMES)
+            if not frame:
+                continue
+
             if frame_count == 1:
                 height, width, channels = frame.shape
                 print(height, width)
@@ -150,4 +153,4 @@ if __name__ == "__main__":
             img_out_path =  f"{os.path.join(OUT_PATH, video_name)}_{frame_count}.png"
             ToCSV.draw_on_im(out_video_path,writer)
 
-        writer.release()        
+        writer.release()
