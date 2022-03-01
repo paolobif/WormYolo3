@@ -129,7 +129,7 @@ if __name__ == "__main__":
 
 
         vid = cv2.VideoCapture(VID_PATH)
-        total_frame_count = vid.get(cv2.CAP_PROP_FRAME_COUNT)
+        total_frame_count = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
         video_name = os.path.basename(VID_PATH).strip('.avi')
 
 
