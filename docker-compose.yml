@@ -17,3 +17,5 @@ services:
     volumes:
       - ./data/:/app/data
       - ./weights:/app/weights
+
+    command: python3 vid_annotater_bulk.py data/vids data/results
