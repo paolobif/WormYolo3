@@ -1,4 +1,5 @@
 from __future__ import division
+from ast import Str
 from ctypes import Array
 from typing import Tuple
 
@@ -268,15 +269,24 @@ class YoloToCSV():
     those outputs as a csv file.
 
     """
-    def __init__(self, model, img_path, full=False, nms=0.1):
+    def __init__(self, model, img, frame_count, full=False, nms=0.1):
         """
         Args:
             model is a model object from YoloModelLatest class.
             img_path is the complete path to the image or the image itself.
+            full wills save the conf with the class conf in the output.
+            nms = nms threshold for nms on all the outputs.
         """
         self.model = model
-        self.img_path = img_path
-        self.img = cv2.imread(img_path)
+
+        if type(img) == str:
+            self.img_path = img
+            self.img = cv2.imread(img)
+        else:
+            self.img_path = None
+            self.img = img
+
+        self.frame_count = frame_count
         self.full = full  # If true will use the full output data.
         self.nms = nms  # Non max supression overlap threshold.
 
@@ -288,15 +298,33 @@ class YoloToCSV():
         return outputs
 
     def write_to_csv(self, out_path):
-        """Writes outputs to CSV at out_path"""
-        img_name = os.path.basename(self.img_path)
+        """Writes outputs to CSV at out_path
+        Only works if img_path is the actual image."""
+        if self.img_path:
+            img_name = os.path.basename(self.img_path)
+        else:
+            img_name = self.frame_count
+
         outputs = self.get_annotations()
 
         # If full is true -> include the confidence in output.
         df = self.pd_for_csv(outputs, full=self.full, img_name=img_name)
 
-        df.to_csv(out_path, mode='a', header=True, index=None)
+        df.to_csv(out_path, mode='a', header=False, index=None)
         print(f"Wrote {img_name} to csv!")
+
+    def draw_on_im(self, out_path, writer, text=None):
+        img = self.img
+        for output in self.outputs:
+            output = [int(n) for n in output]
+            x1, y1, x2, y2, *_ = output
+            # Draw rectangles
+            cv2.rectangle(img, (x1,y1), (x2,y2), (255,255,0), 2)
+            if text is not None:
+                cv2.putText(img, text, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
+        ## write image to path
+        #cv2.imwrite(out_path, img)
+        writer.write(img)
 
     # creates pandas df for easy csv saving.
     @staticmethod
@@ -308,7 +336,11 @@ class YoloToCSV():
             x1, y1, x2, y2, conf, cls_conf = output
             w = abs(x2-x1)
             h = abs(y2-y1)
+
+            x1, y1, w, h = int(x1), int(y1), int(w), int(h)
             if full:
+                conf = round(conf, 4)
+                cls_conf = round(cls_conf, 4)
                 csv_outputs.append([img_name, x1, y1, w, h, "worm",
                                     conf, cls_conf])
             else:

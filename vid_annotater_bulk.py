@@ -10,7 +10,7 @@ from sort.sort import *
 
 
 ## initialize model
-class YoloToCSV():
+class YoloToCSV_OLD():
     def __init__(self, model, frame, frame_count):
         """
         model is a model object from YoloModelLatest class.
@@ -101,6 +101,10 @@ if __name__ == "__main__":
     """
     VID_FOLD_PATH = sys.argv[1]
     OUT_FOLD_PATH = sys.argv[2]
+    CONF = True
+    if sys.argv[3]:
+        CONF = sys.argv[3]
+    NMS = 0.1
 
 
     vid_list = os.listdir(VID_FOLD_PATH)
@@ -133,7 +137,6 @@ if __name__ == "__main__":
         total_frame_count = vid.get(cv2.CAP_PROP_FRAME_COUNT)
         video_name = os.path.basename(VID_PATH).strip('.avi')
 
-
         csv_out_path = f"{os.path.join(OUT_PATH, video_name)}.csv"
         out_video_path = f"{OUT_PATH}/{os.path.basename(VID_PATH).strip('.avi')}_yolo.avi"
 
@@ -146,7 +149,7 @@ if __name__ == "__main__":
                 print(height, width)
                 fourcc = cv2.VideoWriter_fourcc(*"MJPG")
                 writer = cv2.VideoWriter(out_video_path, fourcc, 10, (width, height), True)
-            ToCSV = YoloToCSV(model, frame, frame_count)
+            ToCSV = YoloToCSV(model, frame, frame_count, full=CONF, nms=NMS)
             ToCSV.write_to_csv(csv_out_path)
             img_out_path = f"{os.path.join(OUT_PATH, video_name)}_{frame_count}.png"
             ToCSV.draw_on_im(out_video_path, writer)
