@@ -10,7 +10,7 @@ from sort.sort import *
 
 
 ## initialize model
-class YoloToCSV():
+class YoloToCSV_OLD():
     def __init__(self, model, frame, frame_count):
         """
         model is a model object from YoloModelLatest class.
