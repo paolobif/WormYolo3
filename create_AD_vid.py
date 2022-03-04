@@ -40,7 +40,7 @@ def analyzeSORT(df,threshold):
     test = vc[vc > threshold].index.tolist()
     csv_outputs = []
     deadboxes = []
-    for ID in test:        
+    for ID in test:
         filtval = df['label'] ==ID
         interim = df[filtval]
         interimD = []
@@ -48,7 +48,7 @@ def analyzeSORT(df,threshold):
         fill = 0
         deadcount = 0
         deathspots = []
-    for ID in test:        
+    for ID in test:
         filtval = df['label'] ==ID
         interim = df[filtval]
         interimD = []
@@ -60,7 +60,7 @@ def analyzeSORT(df,threshold):
             if fill > 1:
                 boxA = [x1A, y1A, x2A, y2A]
                 boxB = [x1B, y1B, x2B, y2B]
-                deltaA = bb_intersection_over_union(boxA, boxB) 
+                deltaA = bb_intersection_over_union(boxA, boxB)
                 #print(deltaA)
                 if deltaA > 0.95:
                     deadcount += 1
@@ -71,8 +71,8 @@ def analyzeSORT(df,threshold):
                    # print(deadcount)
                 if deadcount == 36:
                     if deadboxes == []:
-                        deathspots.append([frameNA, x1A, y1A, x2A, y2A])     
-                        deadboxes.append([x1A, y1A, x2A, y2A])  
+                        deathspots.append([frameNA, x1A, y1A, x2A, y2A])
+                        deadboxes.append([x1A, y1A, x2A, y2A])
                         csv_outputs.append((frameNA/72)+2)
                     else:
                         notunique = 0
@@ -80,12 +80,12 @@ def analyzeSORT(df,threshold):
                             #print(box)
                             x1D, y1D, x2D, y2D, *_ = box
                             boxD = [x1D, y1D, x2D, y2D]
-                            deltaD = bb_intersection_over_union(boxA, boxD)  
+                            deltaD = bb_intersection_over_union(boxA, boxD)
                             if deltaD > 0.3:
                                 notunique = 1
                         if notunique == 0:
-                            deathspots.append([frameNA, x1A, y1A, x2A, y2A])  
-                            deadboxes.append([x1A, y1A, x2A, y2A])               
+                            deathspots.append([frameNA, x1A, y1A, x2A, y2A])
+                            deadboxes.append([x1A, y1A, x2A, y2A])
                             csv_outputs.append((frameNA/72)+2)
 
                     #print(deathtime)
@@ -109,13 +109,6 @@ def analyzeSORT(df,threshold):
 
 
 
-
-
-
-
-
-
-
 if __name__ == "__main__":
     # declare source directory and out path
     """
@@ -126,11 +119,11 @@ if __name__ == "__main__":
     SORT_DIR = sys.argv[1]
     VID_DIR = sys.argv[2]
     OUT_PATH = sys.argv[3]
-    
-    
-    
+
+
+
     vid_list = fnmatch.filter(os.listdir(VID_DIR),"*.avi")
- 
+
     for vid_name in vid_list:
         videoPath = VID_DIR+vid_name
         print(videoPath)
@@ -143,13 +136,13 @@ if __name__ == "__main__":
         #csv_path = os.path.join(SORT_DIR, csv_name)
         df = pd.read_csv(csv_path,names=('frame', 'x1', 'y1', 'x2', 'y2','label','delta'))
         df['catagory'] = 'alive'
-        
+
         while (1):
             ret, frame = vid.read()
             frame_count = vid.get(cv2.CAP_PROP_POS_FRAMES)
             #print(frame_count)
             if frame_count == 1:
-                
+
                 height, width, channels = frame.shape
                 #print(height, width)
                 fourcc = cv2.VideoWriter_fourcc(*"MJPG")
@@ -158,7 +151,7 @@ if __name__ == "__main__":
 
             for death in deathspots:
                 #print(death)
-                frameNA, x1, y1, x2, y2, *_ = death  
+                frameNA, x1, y1, x2, y2, *_ = death
                 frameNA = int(frameNA)
                 if frame_count > frameNA:
                     x1 = int(x1)
@@ -170,9 +163,6 @@ if __name__ == "__main__":
             writer.write(frame)
             if frame_count == total_frame_count:
                 break
-        writer.release() 
+        writer.release()
         print(out_video_path)
 
-        
-    
-        
