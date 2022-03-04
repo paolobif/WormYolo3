@@ -3,21 +3,20 @@ import cv2
 import csv
 import os
 from PIL import Image
-import segmentation as seg
 import image_analysis as ia
-import multiprocessing
 import skeleton_cleaner as sc
 import convert_image as ci
 import time as t
 import shutil
 import os
 import sys
+import subprocess
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
 """
-Handles the transition between YOLO's output of CSV files and Pixellib's input of images
+Handles the transition between YOLO's output of CSV  les and Pixellib's input of images
 """
 
 # The padding for worm images
@@ -28,16 +27,19 @@ DATA_PATH = "Anno"
 SKELE_PATH = "Skele"
 
 # The model that should be used for semantic segmentation
-MODEL_PATH = "C:/Users/cdkte/Downloads/worm_segmentation/model_folder/mask_rcnn_model.052-0.130289.h5"
+MODEL_PATH = "C:/Users/cdkte/Downloads/worm_segmentation/model_folder/mask_rcnn_model.008-0.419976.h5"
 
 # The number of Tensorflow processes that can be run at one time
 PROCESS_NUM = 1
 
 # Delete images and annotated images after creating the video
-DELETE_FRAMES = True
+DELETE_FRAMES = False
+
+# Delete folders created in processing
+DELETE_FOLDERS = False
 
 # The minimum number of frames for a unique worm to appear in for it to be tracked
-MIN_FRAMES = 20
+MIN_FRAMES = 10
 
 # Number of frames to move at a time (I recommend reducing min_frames when you increase this)
 # 1 skips no frames, 2 takes every second frame
@@ -70,6 +72,8 @@ def createImages(vid_path,csv_path,out_path):
     for row in reader:
 
       row = [row[0],row[2],row[3],row[4],row[5],row[1]]
+      #row = [row[0],row[1],row[2],row[3],row[4],row[5]]
+
       frame = float(row[0])
       if not (frame%SKIP_FRAMES == 0):
         continue
@@ -91,6 +95,7 @@ def createImages(vid_path,csv_path,out_path):
       if unique_worms[i]>=MIN_FRAMES:
         working_worms.append(i)
         os.mkdir(out_path+"/"+str(i))
+
   for i in range(0,int(total_frame_count)):
     ret, frame = vid.read()
     frame_count = vid.get(cv2.CAP_PROP_POS_FRAMES)
@@ -136,9 +141,11 @@ def createImages(vid_path,csv_path,out_path):
 
 def createAnnotatedFolders(folder_path):
   """
-  For each folder of images within folder_path, creates a folder for highlighted images
-  and fills it.
-  Uses multiprocessing to clear Tensorflow memory
+  For each folder of images within folder_path, creates a new folder for highlighted images
+  and fills it. The new folders are also in folder_path
+  Uses subprocess to clear Tensorflow memory
+
+  folder_path: The directory containing the folders of images
   """
   all_files = os.listdir(folder_path)
   i = 0
@@ -149,61 +156,61 @@ def createAnnotatedFolders(folder_path):
     i+=1
     print(i,"started out of",total_length)
     if os.path.isdir(folder_path+"/"+file) and file.split("_")[0]!=DATA_PATH:
-
-      first_input = folder_path+"/"+file
-      second_input = MODEL_PATH
+      first_input = "1"
+      second_input = folder_path+"/"+file
       third_input = folder_path+"/"+DATA_PATH+"_"+file
-      os.system("cd "+os.path.dirname(os.path.abspath(__file__)))
-      os.system("python3 segmentation.py "+first_input+" "+second_input+" "+third_input)
-    	#seg.annotateFolder(first_input,second_input,third_input)
-    """
-    if os.path.isdir(folder_path+"/"+file) and file.split("_")[0]!=DATA_PATH:
+      segmentation_file = "/".join(__file__.split("/")[0:-1]) + "segmentation.py"
+      subprocess.call(["python3",segmentation_file,first_input,second_input,third_input])
 
-      p = multiprocessing.Process(target = seg.annotateFolder, args=(folder_path+"/"+file,MODEL_PATH,folder_path+"/"+DATA_PATH+"_"+file))
-      p.start()
-      p.join()
-      multi_list.append(p)
-    print(i," out of ",total_length," started")
-
-    if len(multi_list) >= PROCESS_NUM:
-      for j in range(len(multi_list)):
-        proc = multi_list[0]
-        proc.join()
-        multi_list.remove(proc)
-    """
-def gatherAllData(folder_path, function_list):
+def gatherAllData(folder_path):
   """
   Collects the information from individual images and returns it as a matrix.
+  Run on the directory containing multiple worm ID folders, each of which contains images of that specific worm.
+
+  Args:
+    folder_path: The path to the folder of folders of highlighted images to get data from
+
+  Returns:
+    all_data: Numpy array of the data taken from all the worms in the folder
   """
   all_files = os.listdir(folder_path)
   i = 0
   total_length = len(all_files)/2
-  all_data=np.empty((0,6+len(function_list)+10))
+  all_data=np.empty((0,23))
   for file in all_files:
 
     if os.path.isdir(folder_path+"/"+file) and file.split("_")[0] == DATA_PATH:
       print(i," out of ",total_length)
       i+=1
-      file_data = ia.folder_data(folder_path+"/"+file, function_list)
+      file_data = ia.folder_data(folder_path+"/"+file)
       all_data = np.vstack((all_data,file_data))
 
   return all_data
 
-def storeAllData(folder_path, function_list, match_dict = {}):
+def storeAllData(folder_path):
   """
-  Takes highlighted images from folder_path, and runs each through the functions in
-  function_list storing the results to a csv file.
-  """
-  titles =   titles = ia.functionNames(function_list,match_dict)
-  titles += ",point1_x,point1_y,point2_x,point2_y,point3_x,point3_y,point4_x,point4_y,point5_x,point5_y"
-  all_data = gatherAllData(folder_path, function_list)
-  folder_name = os.path.basename(folder_path)
+  Takes highlighted images from subfolders of folder_path and gathers data, storing the results to a csv file.
 
+  Args:
+    folder_path: The directory where the id folders are stored
+  """
+
+  # Get Labels for each column
+  titles =   titles = ia.functionNames()
+
+  # Collect Data
+  all_data = gatherAllData(folder_path)
+
+  # Write data to csv
+  folder_name = os.path.basename(folder_path)
   np.savetxt(folder_path+"/"+folder_name+".csv", all_data, header = titles, delimiter = ",")
 
 def storeVideos(folder_path):
   """
   Creates a skeleton video and a highlighted video for each folder in folder_path
+
+  Args:
+    folder_path: The folder of folders with highlighted images
   """
   print("Creating videos!")
   all_files = os.listdir(folder_path)
@@ -222,27 +229,44 @@ def storeVideos(folder_path):
       if DELETE_FRAMES:
         shutil.rmtree(folder_path+"/"+folder)
 
+def clearFolders(folder_path):
+  """
+  Deletes all folders within a folder. Don't point this at anything you care about!
+
+  Args:
+    folder_path: The folder containing folders to delete
+
+  Returns:
+    List of the names of deleted directories
+  """
+  del_arr = []
+  if DELETE_FOLDERS:
+    for file in os.listdir(folder_path):
+      if os.path.isdir(folder_path+"/"+file):
+        del_arr.append()
+        shutil.rmtree(folder_path+"/"+file)
+
 def runAllPixellib(vid_path,csv_path,folder_path):
   """
   Takes a video and a sorted csv file and turns it entirely into data
 
-  vid_path: The path to the video
-  csv_path: The sorted csv file
-  folder_path: The path to store outputs
+  Args:
+    vid_path: The path to the video
+    csv_path: The csv file that tells where sorted worms are
+    folder_path: The path to store outputs
   """
   start = t.time()
   if not SKIP_ANNO:
     createImages(vid_path,csv_path,folder_path)
     createAnnotatedFolders(folder_path)
-  func_list = [ci.getArea, ci.getAverageShade,sc.getCmlAngle,sc.getCmlDistance,ci.getMaxWidth,ci.getMidWidth,sc.getDiagonalNum]
-  storeAllData(folder_path, func_list)
+  storeAllData(folder_path)
   storeVideos(folder_path)
+  clearFolders(folder_path)
   stop = t.time()
   print("Complete!")
   print("Time taken:", stop-start)
 
 if __name__ == "__main__":
-  func_list = [ci.getArea, ci.getAverageShade,sc.getCmlAngle,sc.getCmlDistance,ci.getMaxWidth,ci.getMidWidth,sc.getDiagonalNum]
 
   try:
     avi_path = sys.argv[1]
@@ -288,19 +312,7 @@ if __name__ == "__main__":
   except IndexError:
     print("No int for number of Tensorflow procceses: Using default setting")
 
-
-
-
-
-  createImages("C:/Users/cdkte/Downloads/641_day4_simple.avi","C:/Users/cdkte/Downloads/641_day4_simple_sort.csv","C:/Users/cdkte/Downloads/test_skip2")
-  #storeAllData("206",func_list)
-  #runAllPixellib(avi_path,csv_path,output_path)
-  #storeVideos("206")
-  #screateAnnotatedFolders("Day10")
-
-  #storeAllData("Day10", func_list)
-
-
+  runAllPixellib(avi_path,csv_path,output_path)
 
 
 

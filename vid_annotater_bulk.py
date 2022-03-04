@@ -134,16 +134,17 @@ if __name__ == "__main__":
 
 
         vid = cv2.VideoCapture(VID_PATH)
-        total_frame_count = vid.get(cv2.CAP_PROP_FRAME_COUNT)
+        total_frame_count = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
         video_name = os.path.basename(VID_PATH).strip('.avi')
 
         csv_out_path = f"{os.path.join(OUT_PATH, video_name)}.csv"
         out_video_path = f"{OUT_PATH}/{os.path.basename(VID_PATH).strip('.avi')}_yolo.avi"
 
 
-        while (1):
+        for _ in range(total_frame_count - 1):
             ret, frame = vid.read()
             frame_count = vid.get(cv2.CAP_PROP_POS_FRAMES)
+
             if frame_count == 1:
                 height, width, channels = frame.shape
                 print(height, width)

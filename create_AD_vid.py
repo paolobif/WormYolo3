@@ -103,12 +103,6 @@ def analyzeSORT(df,threshold):
 
 
 
-
-
-
-
-
-
 if __name__ == "__main__":
     # declare source directory and out path
     """
