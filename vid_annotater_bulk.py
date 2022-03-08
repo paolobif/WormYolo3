@@ -8,7 +8,6 @@ from yolov3_core import *
 from sort.sort import *
 
 
-
 ## initialize model
 class YoloToCSV_OLD():
     def __init__(self, model, frame, frame_count):

@@ -4,6 +4,7 @@ from ctypes import Array
 from typing import Tuple
 
 from numpy.core.multiarray import array
+from sqlalchemy import false
 
 from models import *
 from utils.utils import *
@@ -293,8 +294,10 @@ class YoloToCSV():
     def get_annotations(self):
         # pass through img processor. Image and cut size.
         outputs = self.model.pass_model(self.img)
-        outputs = non_max_suppression_post(outputs, overlapThresh=self.nms)
         self.outputs = outputs
+        if len(outputs) == 0:
+            return []
+        outputs = non_max_suppression_post(outputs, overlapThresh=self.nms)
         return outputs
 
     def write_to_csv(self, out_path):
@@ -306,6 +309,9 @@ class YoloToCSV():
             img_name = self.frame_count
 
         outputs = self.get_annotations()
+
+        if len(outputs) == 0:
+            return None
 
         # If full is true -> include the confidence in output.
         df = self.pd_for_csv(outputs, full=self.full, img_name=img_name)
