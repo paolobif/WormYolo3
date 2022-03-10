@@ -77,7 +77,7 @@ class YoloToCSV_OLD():
         track_bbs_ids = mot_tracker1.update(boxes_xyxy)
         return(track_bbs_ids)
 
-    def pd_for_sort_output(self, outputs, img_name = "name"):
+    def pd_for_sort_output(self, outputs, img_name="name"):
         csv_outputs = []
         for worm in outputs:
             worm = worm.astype(np.int32)
@@ -98,11 +98,13 @@ if __name__ == "__main__":
     OUT_PATH is the path to the csv file you would like the output to go to
     i.e './output/sample.csv'
     """
+    FRAME_LIMIT = 3000
+
     VID_FOLD_PATH = sys.argv[1]
     OUT_FOLD_PATH = sys.argv[2]
-    CONF = True
-    if sys.argv[3]:
-        CONF = sys.argv[3]
+    CONF = False
+    # if sys.argv[3]:
+    #     CONF = sys.argv[3]
     NMS = 0.1
 
 
@@ -129,9 +131,6 @@ if __name__ == "__main__":
         model = YoloModelLatest(settings)
 
 
-        #img_list = os.listdir(IMG_DIR)
-
-
         vid = cv2.VideoCapture(VID_PATH)
         total_frame_count = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
         video_name = os.path.basename(VID_PATH).strip('.avi')
@@ -139,8 +138,8 @@ if __name__ == "__main__":
         csv_out_path = f"{os.path.join(OUT_PATH, video_name)}.csv"
         out_video_path = f"{OUT_PATH}/{os.path.basename(VID_PATH).strip('.avi')}_yolo.avi"
 
-
-        for _ in range(total_frame_count - 1):
+        lim = min(FRAME_LIMIT, total_frame_count-1)
+        for _ in range(lim):  # total_frame_count - 1
             ret, frame = vid.read()
             frame_count = vid.get(cv2.CAP_PROP_POS_FRAMES)
 
