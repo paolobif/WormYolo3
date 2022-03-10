@@ -574,7 +574,7 @@ def non_max_suppression_post(outputs, overlapThresh):
         x1, y1, x2, y2, conf, cls_conf = out
         fullOutputs.append([x1.tolist(), y1.tolist(), x2.tolist(), y2.tolist(), conf.tolist(), cls_conf.tolist()])
     t=time.time()
-    boxes = np.asarray(fullOutputs)[:,:4]
+    boxes = np.asarray(fullOutputs)[:,:6]
     if len(boxes) == 0:
         return []
     # if the bounding boxes integers, convert them to floats --
@@ -618,7 +618,7 @@ def non_max_suppression_post(outputs, overlapThresh):
     # return only the bounding boxes that were picked using the
     # integer data type
     #print(time.time()-t)
-    return boxes[pick].astype("int")
+    return boxes[pick].astype(float)
 
 
 def get_yolo_layers(model):

@@ -8,9 +8,8 @@ from yolov3_core import *
 from sort.sort import *
 
 
-
 ## initialize model
-class YoloToCSV():
+class YoloToCSV_OLD():
     def __init__(self, model, frame, frame_count):
         """
         model is a model object from YoloModelLatest class.
@@ -57,6 +56,7 @@ class YoloToCSV():
         #cv2.imwrite(out_path, img)
         writer.write(img)
     # creates pandas df for easy csv saving.
+
     @staticmethod
     def pd_for_csv(outputs, img_name = "name"):
         """Converts tensors to list that is added to pd df for easy writing to csv"""
@@ -77,8 +77,7 @@ class YoloToCSV():
         track_bbs_ids = mot_tracker1.update(boxes_xyxy)
         return(track_bbs_ids)
 
-
-    def pd_for_sort_output(self, outputs, img_name = "name"):
+    def pd_for_sort_output(self, outputs, img_name="name"):
         csv_outputs = []
         for worm in outputs:
             worm = worm.astype(np.int32)
@@ -91,6 +90,7 @@ class YoloToCSV():
         out_df = pd.DataFrame(csv_outputs)
         return out_df
 
+
 if __name__ == "__main__":
     # declare source directory and out path
     """
@@ -98,8 +98,14 @@ if __name__ == "__main__":
     OUT_PATH is the path to the csv file you would like the output to go to
     i.e './output/sample.csv'
     """
+    FRAME_LIMIT = 3000
+
     VID_FOLD_PATH = sys.argv[1]
     OUT_FOLD_PATH = sys.argv[2]
+    CONF = False
+    # if sys.argv[3]:
+    #     CONF = sys.argv[3]
+    NMS = 0.1
 
 
     vid_list = os.listdir(VID_FOLD_PATH)
@@ -125,19 +131,15 @@ if __name__ == "__main__":
         model = YoloModelLatest(settings)
 
 
-        #img_list = os.listdir(IMG_DIR)
-
-
         vid = cv2.VideoCapture(VID_PATH)
         total_frame_count = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
         video_name = os.path.basename(VID_PATH).strip('.avi')
 
-
         csv_out_path = f"{os.path.join(OUT_PATH, video_name)}.csv"
         out_video_path = f"{OUT_PATH}/{os.path.basename(VID_PATH).strip('.avi')}_yolo.avi"
 
-
-        for _ in range(total_frame_count - 1):
+        lim = min(FRAME_LIMIT, total_frame_count-1)
+        for _ in range(lim):  # total_frame_count - 1
             ret, frame = vid.read()
             frame_count = vid.get(cv2.CAP_PROP_POS_FRAMES)
 
@@ -146,9 +148,9 @@ if __name__ == "__main__":
                 print(height, width)
                 fourcc = cv2.VideoWriter_fourcc(*"MJPG")
                 writer = cv2.VideoWriter(out_video_path, fourcc, 10, (width, height), True)
-            ToCSV = YoloToCSV(model, frame, frame_count)
+            ToCSV = YoloToCSV(model, frame, frame_count, full=CONF, nms=NMS)
             ToCSV.write_to_csv(csv_out_path)
-            img_out_path =  f"{os.path.join(OUT_PATH, video_name)}_{frame_count}.png"
-            ToCSV.draw_on_im(out_video_path,writer)
+            img_out_path = f"{os.path.join(OUT_PATH, video_name)}_{frame_count}.png"
+            ToCSV.draw_on_im(out_video_path, writer)
 
         writer.release()
