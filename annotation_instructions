@@ -1,8 +1,0 @@
-
-yolo_to_pixellib.py
-  Inputs: avi_path, csv_path, output_path, MODEL_PATH, MIN_FRAMES, DELETE_FRAMES, PROCESS_NUM
-  All capitalized variables do not require input and all variables can be manually changed in the file as to require no input
-  MODEL_PATH should be updated manually at the top of the file when first used on the device,
-    though this can be treated as a variable
-  Example:
-    python yolo_to_pixellib.py C:/Users/username/Downloads/Mot_Single/206.avi C:/Users/username/Downloads/Mot_Single/206_sort.csv 206
