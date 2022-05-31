@@ -6,6 +6,8 @@ An implementation of [YOLOv3](https://pjreddie.com/media/files/papers/YOLOv3.pdf
 https://youtu.be/pzxg0H6FQl4)
 [(*click for video...*)](https://youtu.be/pzxg0H6FQl4)
 
+![Results](https://drive.google.com/uc?export=view&id=17aDlpJQs5MTnbJ5adh5O5VaTPIiQ6zPY)
+
 ##  Pipeline
 1. `Videos exported from the experiment.`
 <!-- ![RawImage](https://drive.google.com/uc?export=view&id=12lVwhj4M3lJ-vphTHwiZpAzlrpbshwtB) -->
@@ -16,9 +18,19 @@ https://youtu.be/pzxg0H6FQl4)
 
 ---
 
-### Docker
+### [Docker](https://docs.docker.com/compose/install/)
+
 ```bash
-$ docker build
+
+$ docker-compose build
+```
+* To run:
+```bash
+$ docker-compose run
+
+# Will start running the pipeline.
+# By default points to ~/data/vids and will save in ~data/results
+# If you wish to modify: change command path in docker-compose.yml
 ```
 
 ### Pip
@@ -42,25 +54,47 @@ $ pip install torch==1.9.1+cu111 torchvision==0.10.1+cu111 torchaudio==0.9.1 -f 
 $ bash weights/download_yolov3_weights.sh
 ```
 
-## How to use
-* download weights from google drive link in weights folder
-* look at "simple_test.ipynb" to test if all dependencies are installed correctly and to see the simplest way to pass the model on images is
-* note: classes.names is in cfg folder
+* To run:
 
-* using csv and img options:
--- $ python3 yolov3_tracker_latest.py -h
-the only arguments that you should have to set are: weights, out_path, data_path, video, csv, img
--- note: currently video doesn't work
-* example
-if you wanted to generate csv file from the images you'd run:
--- $ python3 yolov3_tracker_latest.py --weights %path_to_weights% --out_path %save_folder% --data_path %images_folder% --csv
-* if you also wanted to generate anotated png files you would add --img to the end.
+```bash
+$ python3 vid_annotater_bulk.py -- include params
+
+# Will run with defualt params on specified path.
+# Check docs if you wish to modify.
+```
 
 
-## Data Info
-* approximately 1068 images 1080x1920
-* 56,047 individual worms
-* --csv tag saves 1 csv per image in the format: img_name, x1, y1, w, h
+
+
+## Weights Info
+
+* Dataset of 1068 images 1080x1920
+* 29,628 individual worms
+
+* #### Training
+  * Pre-trained with weights from the COCO dataset found [here](https://pjreddie.com/media/files/yolov3-spp.weights).
+  * Each image is gridded into several 416x416 slices of overlaying crops.
+  * Images are then upscalled to 608x608px.
+  * Used config found in [~/cfg/yolov3-spp-1cls.cfg](~/cfg/yolov3-spp-1cls.cfg).
+
+
+----
+
+
+## Train Custom Weights
+
+
+Sample Cropping:
+
+| Crop1 | Crop2 | Crop3 | Crop4 |
+| ----- | ----- | ----- | ----- |
+|  ![Crops](https://drive.google.com/uc?export=view&id=1bgnw-oaV3q2784TXzcWQg_DbM1zkNSft)| ![Crops](https://drive.google.com/uc?export=view&id=14U1OxpQSdBbYyXIlC6cEclB3XiTBWoBn)| ![Crops](https://drive.google.com/uc?export=view&id=18VkqCZxylZ0PBe3Lj8cHHZr_VMph9Aoq)| ![Crops](https://drive.google.com/uc?export=view&id=18VkqCZxylZ0PBe3Lj8cHHZr_VMph9Aoq)
+
+
+
+[downlaod latest weights](https://www.dropbox.com/sh/xx4kalzjxrkej26/AABzftltaYpoQiyNhkwQQOqCa?dl=1)
+
+
 ## Citation
 
  https://pjreddie.com/media/files/papers/YOLOv3.pdf
