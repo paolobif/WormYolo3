@@ -100,6 +100,8 @@ if __name__ == "__main__":
     """
     VID_FOLD_PATH = sys.argv[1]
     OUT_FOLD_PATH = sys.argv[2]
+    MODEL_PATH = sys.argv[3]
+    WEIGHTS_PATH = sys.argv[4]
 
 
     vid_list = os.listdir(VID_FOLD_PATH)
@@ -111,8 +113,8 @@ if __name__ == "__main__":
 
         ## Declare settings for nn
         ## make sure to change these prarameters for your work enviroment
-        settings = {'model_def': "cfg/yolov3-spp-1cls.cfg",
-                    'weights_path': "weights/416_1_4_full_best200ep.pt",
+        settings = {'model_def': MODEL_PATH,
+                    'weights_path': WEIGHTS_PATH,
                     'class_path': "cfg/classes.names",
                     'img_size': 608,
                     'iou_thres': 0.4,
