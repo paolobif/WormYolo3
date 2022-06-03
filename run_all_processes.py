@@ -1,9 +1,26 @@
 import os
 import sys
+from tabnanny import process_tokens
+import time as t
+import atexit
+import subprocess
 """
 Runs all the files
 """
 
+global processes
+processes = []
+
+def on_kill():
+  for process in processes:
+    try:
+      process.terminate()
+    except E:
+      print(E)
+
+atexit.register(on_kill)
+
+DEBUG=False
 
 cur_dir = os.path.split(__file__)[0]
 
@@ -13,10 +30,9 @@ def run_all_files(do_downsample:bool,do_tod:bool,input_folder:str,output_folder:
         cur_out = os.path.join(output_folder,"downsample")
         if not os.path.exists(cur_out):
           os.mkdir(cur_out)
-        run_downsample(input_folder, output_folder)
+        run_downsample(input_folder, cur_out)
         cur_in = cur_out
 
-    open(output_folder+"/test.txt","w+")
     cur_out = os.path.join(output_folder,"yolo")
     if not os.path.exists(cur_out):
           os.mkdir(cur_out)
@@ -39,22 +55,47 @@ def run_all_files(do_downsample:bool,do_tod:bool,input_folder:str,output_folder:
 
 def run_yolo(input_folder, output_folder, cfg_file, model_file):
     # TODO: Add yolo file (Make yolo file)
-    vid_bulk_file = os.path.join(cur_dir,"vid_annotater_bulk.py")
-    args = ["python",vid_bulk_file,input_folder,output_folder,cfg_file,model_file]
-    os.system(" ".join(args))
+    if not DEBUG:
+      vid_bulk_file = os.path.join(cur_dir,"vid_annotater_bulk.py")
+      args = ["python",vid_bulk_file,input_folder,output_folder,cfg_file,model_file]
+      proc = subprocess.Popen(" ".join(args))
+      proc.communicate()
+      global processes
+      processes.append(proc)
+    else:
+      for file in os.listdir(input_folder):
+        open(os.path.join(output_folder,file),"w+")
+        t.sleep(5)
+
 
 
 def run_downsample(input_folder,output_folder):
     # TODO: Make downsample file and checkbox
-    pass
+    if not DEBUG:
+      pass
+    else:
+      for file in os.listdir(input_folder):
+        open(os.path.join(output_folder,file),"w+")
+        t.sleep(3)
 
 def run_sort(input_folder, output_folder):
     # TODO: Make sort file and checkbox
-    pass
+    if not DEBUG:
+      pass
+    else:
+      for file in os.listdir(input_folder):
+        open(os.path.join(output_folder,file),"w+")
+        t.sleep(4)
 
 def run_ToD(input_folder, output_folder):
     # TODO: Get time of death calls, add checkbox
-    pass
+    if not DEBUG:
+      pass
+    else:
+      for file in os.listdir(input_folder):
+        open(os.path.join(output_folder,file),"w+")
+        t.sleep(3)
+
 
 if __name__ =="__main__":
   dwnsmpl = sys.argv[1] == "True"
