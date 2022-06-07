@@ -16,7 +16,7 @@ def on_kill(sig, frame):
   for process in processes:
     try:
       process.terminate()
-    except E:
+    except Exception as E:
       print(E)
   raise
 
