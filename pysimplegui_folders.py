@@ -3,6 +3,7 @@ import os
 import time as t
 import subprocess
 import numpy as np
+import signal
 
 # Just count how many of the expected number of files there currently are
 
@@ -102,7 +103,9 @@ def start_running(do_downsample:bool,do_tod:bool,input_folder:str,output_folder:
     #print(current_process.communicate())
 
 def cancel():
-    current_process.terminate()
+    os.kill(current_process.pid, signal.SIGINT)
+    print(current_process.communicate())
+    #current_process.terminate()
 
 model_folder = cur_dir + "/cfg"
 weights_folder = cur_dir + "/weights"

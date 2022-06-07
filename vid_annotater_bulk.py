@@ -147,10 +147,10 @@ if __name__ == "__main__":
                 height, width, channels = frame.shape
                 print(height, width)
                 fourcc = cv2.VideoWriter_fourcc(*"MJPG")
-                writer = cv2.VideoWriter(out_video_path, fourcc, 10, (width, height), True)
+                #writer = cv2.VideoWriter(out_video_path, fourcc, 10, (width, height), True)
             ToCSV = YoloToCSV(model, frame, frame_count)
             ToCSV.write_to_csv(csv_out_path)
             img_out_path =  f"{os.path.join(OUT_PATH, video_name)}_{frame_count}.png"
-            ToCSV.draw_on_im(out_video_path,writer)
+            #ToCSV.draw_on_im(out_video_path,writer)
 
-        writer.release()
+        #writer.release()

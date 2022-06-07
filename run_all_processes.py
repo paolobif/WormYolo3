@@ -2,7 +2,7 @@ import os
 import sys
 from tabnanny import process_tokens
 import time as t
-import atexit
+import signal
 import subprocess
 """
 Runs all the files
@@ -11,14 +11,16 @@ Runs all the files
 global processes
 processes = []
 
-def on_kill():
+def on_kill(sig, frame):
+  open("C:/Users/cdkte/Downloads/test.txt","w+")
   for process in processes:
     try:
       process.terminate()
     except E:
       print(E)
+  raise
 
-atexit.register(on_kill)
+
 
 DEBUG=False
 
@@ -81,7 +83,12 @@ def run_downsample(input_folder,output_folder):
 def run_sort(input_folder, output_folder):
     # TODO: Make sort file and checkbox
     if not DEBUG:
-      pass
+      vid_bulk_file = os.path.join(cur_dir,"sort_forward_bulk.py")
+      args = ["python",vid_bulk_file,input_folder,output_folder]
+      proc = subprocess.Popen(" ".join(args))
+      proc.communicate()
+      global processes
+      processes.append(proc)
     else:
       for file in os.listdir(input_folder):
         open(os.path.join(output_folder,file),"w+")
@@ -90,7 +97,12 @@ def run_sort(input_folder, output_folder):
 def run_ToD(input_folder, output_folder):
     # TODO: Get time of death calls, add checkbox
     if not DEBUG:
-      pass
+      vid_bulk_file = os.path.join(cur_dir,"procYOLOnu.py")
+      args = ["python",vid_bulk_file,input_folder,output_folder]
+      proc = subprocess.Popen(" ".join(args))
+      proc.communicate()
+      global processes
+      processes.append(proc)
     else:
       for file in os.listdir(input_folder):
         open(os.path.join(output_folder,file),"w+")
@@ -98,6 +110,7 @@ def run_ToD(input_folder, output_folder):
 
 
 if __name__ =="__main__":
+  signal.signal(signal.SIGINT,on_kill)
   dwnsmpl = sys.argv[1] == "True"
   tod = sys.argv[2] == "True"
   in_path = sys.argv[3]
