@@ -7,6 +7,38 @@ import signal
 
 # Just count how many of the expected number of files there currently are
 
+# TODO: go through when done w/ finals
+# TODO: Not reselect the model/weight
+
+# TODO: Show Error messages
+
+# TODO: Downsample -> Healthspan
+
+# TODO: Time of Death or Time of Paralysis w/ different thresholding
+    # Preset or letting play around with thresholds
+
+# POSSIBLE TODO: Do everything per video
+    # Should fix Cancel
+
+# Change input to YOLO output and run process-yolo?
+# POSSIBLE TODO: Continue processing even through corrupted files
+
+# Possible TODO: If there's a corrupted file, remove already processed files, then continue
+# Possible TODO: Just process YOLO output, rather than run YOLO, such as add checkbox for YOLO
+
+# TODO: Move file when done processing (or check if already processed) and run YOLO->Sort,etc. sequentially
+
+# TODO: Track most recent and delete it when interrupted
+
+# TODO: Add YOLO video option
+
+# TODO: Add circle exclusion (check Paolo-dev in procYOLOnu)
+
+# TODO: At the end, add option to make annotated videos
+    #  Just bounding boxes and ToD, ask Ben
+
+
+
 # Technically this isn't necessary, but it makes it more clear
 global cur_prog
 global max_prog
@@ -144,6 +176,9 @@ layout = [
     ],
     [
         sg.ProgressBar(100,orientation='h', size = (20,20), key = "total_progbar",border_width=4,bar_color=['LightGreen','Green'])
+    ],
+    [
+        sg.Text(text="Test Error",key="Error_Message",size=(50,1),text_color="Red",background_color="DarkRed")
     ]
 ]
 
