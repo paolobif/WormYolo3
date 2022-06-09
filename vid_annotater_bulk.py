@@ -91,6 +91,53 @@ class YoloToCSV():
         out_df = pd.DataFrame(csv_outputs)
         return out_df
 
+def runYOLOonOne(weights_path,cfg_file,vid_path,out_path):
+    ## Declare settings for nn
+    ## make sure to change these prarameters for your work enviroment
+    settings = {'model_def': cfg_file,
+                'weights_path': weights_path,
+                'class_path': "cfg/classes.names",
+                'img_size': 608,
+                'iou_thres': 0.4,
+                'no_gpu': True,
+                'conf_thres': 0.1,
+                'batch_size': 6,
+                'augment': None,
+                'classes': None}
+
+    model = YoloModelLatest(settings)
+
+
+    #img_list = os.listdir(IMG_DIR)
+
+
+    vid = cv2.VideoCapture(vid_path)
+    total_frame_count = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
+    video_name = os.path.basename(vid_path).strip('.avi')
+
+
+    csv_out_path = f"{os.path.join(out_path, video_name)}.csv"
+    #out_video_path = f"{OUT_PATH}/{os.path.basename(VID_PATH).strip('.avi')}_yolo.avi"
+
+
+    for _ in range(total_frame_count - 1):
+        ret, frame = vid.read()
+        frame_count = vid.get(cv2.CAP_PROP_POS_FRAMES)
+        print(os.getpid())
+
+        if frame_count == 1:
+            height, width, channels = frame.shape
+            print(height, width)
+            #fourcc = cv2.VideoWriter_fourcc(*"MJPG")
+            #writer = cv2.VideoWriter(out_video_path, fourcc, 10, (width, height), True)
+        ToCSV = YoloToCSV(model, frame, frame_count)
+        ToCSV.write_to_csv(csv_out_path)
+        #img_out_path =  f"{os.path.join(OUT_PATH, video_name)}_{frame_count}.png"
+        #ToCSV.draw_on_im(out_video_path,writer)
+
+    #writer.release()
+
+
 if __name__ == "__main__":
     # declare source directory and out path
     """
@@ -110,47 +157,5 @@ if __name__ == "__main__":
 
         VID_PATH = os.path.join(VID_FOLD_PATH, vid_name)
         OUT_PATH = OUT_FOLD_PATH
+        runYOLOonOne(MODEL_PATH,WEIGHTS_PATH,VID_PATH,OUT_PATH)
 
-        ## Declare settings for nn
-        ## make sure to change these prarameters for your work enviroment
-        settings = {'model_def': MODEL_PATH,
-                    'weights_path': WEIGHTS_PATH,
-                    'class_path': "cfg/classes.names",
-                    'img_size': 608,
-                    'iou_thres': 0.4,
-                    'no_gpu': True,
-                    'conf_thres': 0.1,
-                    'batch_size': 6,
-                    'augment': None,
-                    'classes': None}
-
-        model = YoloModelLatest(settings)
-
-
-        #img_list = os.listdir(IMG_DIR)
-
-
-        vid = cv2.VideoCapture(VID_PATH)
-        total_frame_count = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
-        video_name = os.path.basename(VID_PATH).strip('.avi')
-
-
-        csv_out_path = f"{os.path.join(OUT_PATH, video_name)}.csv"
-        out_video_path = f"{OUT_PATH}/{os.path.basename(VID_PATH).strip('.avi')}_yolo.avi"
-
-
-        for _ in range(total_frame_count - 1):
-            ret, frame = vid.read()
-            frame_count = vid.get(cv2.CAP_PROP_POS_FRAMES)
-
-            if frame_count == 1:
-                height, width, channels = frame.shape
-                print(height, width)
-                fourcc = cv2.VideoWriter_fourcc(*"MJPG")
-                #writer = cv2.VideoWriter(out_video_path, fourcc, 10, (width, height), True)
-            ToCSV = YoloToCSV(model, frame, frame_count)
-            ToCSV.write_to_csv(csv_out_path)
-            img_out_path =  f"{os.path.join(OUT_PATH, video_name)}_{frame_count}.png"
-            #ToCSV.draw_on_im(out_video_path,writer)
-
-        #writer.release()
