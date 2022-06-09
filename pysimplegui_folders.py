@@ -71,6 +71,9 @@ def updateProg():
         print("Done!")
         total_prog = 0
         cur_prog = 0
+        window["-SELECT_GO-"].update(disabled=False)
+        window["-SELECT_CANCEL-"].update(disabled=True)
+        window.finalize()
         return
     vids = []
     # For every video we want to process, add it to our list
@@ -119,7 +122,10 @@ def start_running(do_downsample:bool,do_tod:bool,do_vids:bool,input_folder:str,o
     print(cfg_file,weight_file)
     if not (os.path.exists(input_folder) and os.path.exists(output_folder) and os.path.exists(cfg_file) and os.path.exists(weight_file)):
         return False
-    window["-SELECT_GO-"].disabled = True
+    #window["-SELECT_GO-"].disabled = True
+    window["-SELECT_GO-"].update(disabled = True)
+    window["-SELECT_CANCEL-"].update(disabled=False)
+    window.finalize()
     do_downsample = str(do_downsample)
     do_tod = str(do_tod)
     do_vids = str(do_vids)
@@ -136,10 +142,18 @@ def start_running(do_downsample:bool,do_tod:bool,do_vids:bool,input_folder:str,o
     return True
 
 def cancel():
+    global current_process
+    if current_process is None:
+        window["Error_Message"].update(value="Not Currently Running",background_color="DarkRed",visible=True)
+        return
     print(current_process.pid)
     os.kill(current_process.pid+1, signal.SIGTERM)
     #print(current_process.communicate())
     current_process.kill()
+    current_process = None
+    window["-SELECT_GO-"].update(disabled=False)
+    window["-SELECT_CANCEL-"].update(disabled=True)
+    window.Finalize()
 
 print(cur_dir,os.path.join(cur_dir, "cfg"))
 model_folder = os.path.join(cur_dir, "cfg")
@@ -218,6 +232,7 @@ while True:
 
 
     elif event == sg.WIN_CLOSED:
+        cancel()
         break
     elif event == "procYOLOoptions":
         print(values["procYOLOoptions"])
@@ -269,6 +284,7 @@ while True:
             number_of_functions += 1
         out_directory = output_folder
         in_directory = input_folder
+
     if not current_process is None:
         updateProg()
         #print(cur_prog,number_of_functions,total_prog,max_prog)
