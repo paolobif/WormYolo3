@@ -7,6 +7,12 @@ import signal
 
 # Just count how many of the expected number of files there currently are
 
+# TODO: video & TOD
+
+# TODO: TOD -> timelapse analysis
+
+# TODO: MAtch folder names and labels in gUI
+
 # Change input to YOLO output and run process-yolo?
 # POSSIBLE TODO: Continue processing even through corrupted files
 
@@ -48,6 +54,11 @@ total_prog = 0
 number_of_functions = 0
 is_running = False
 current_process = None
+
+
+# TODO: Do a thing with this
+IN_FOLDER = "C:/"
+OUT_FOLDER = "C:/"
 
 file_path = os.path.abspath(__file__)
 cur_dir = os.path.split(file_path)[0]
@@ -176,11 +187,11 @@ layout = [
     ],
     [sg.Text('Input', size=(4, 1),tooltip = "The folder of videos to be processed"),
         sg.Input(key="-IN_FOLDER-", default_text="/media/mlcomp/DrugAge/gui_test/in_test", size=(64, 2)),
-        sg.FolderBrowse(key="-IN_BROWSE-",initial_folder="C:/",)
+        sg.FolderBrowse(key="-IN_BROWSE-",initial_folder=INPUT_FOLDER,)
     ],
     [sg.Text('Output', size=(4, 1),tooltip="The folder to output results"),
         sg.Input(key="-OUT_FOLDER-", default_text="/media/mlcomp/DrugAge/gui_test/out_test", size=(64, 2)),
-        sg.FolderBrowse(key="-OUT_BROWSE-",initial_folder="C:/",)
+        sg.FolderBrowse(key="-OUT_BROWSE-",initial_folder=OUTPUT_FOLDER,)
     ],
     [ #TODO: Add checkboxes
      sg.Checkbox("Healthspan",key="-CHECK_DOWNSAMPLE-",tooltip="Reduces the number of frames to be observed. Should only be used on long videos"),

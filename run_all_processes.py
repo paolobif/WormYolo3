@@ -9,6 +9,7 @@ import procYOLOnu as pYn
 import sort_forward_bulk as sfb
 import cv2
 import annotated_vid as avid
+import downsample_frames as dof
 
 """
 Runs all the files
@@ -32,22 +33,24 @@ DEBUG=False
 
 cur_dir = os.path.split(__file__)[0]
 
-# TODO: Add try-catch so it continues if there is an error
-# Tomorrow, Thursday, friday, sit down and where important files should be -
 def run_sequential_files(do_downsample:bool, do_tod:bool, do_vid:bool, input_folder:str, output_folder:str,cfg_file:str,model_file:str,proc_threshold:int,proc_move:int,proc_overlap:float):
   try:
     count = 0
     for file in os.listdir(input_folder):
       count+=1
-      cur_in = os.path.join(input_folder,file)
+      cur_in = input_folder
       file_id = os.path.split(cur_in)[-1][0:-4]
 
       if do_downsample:
         cur_out = os.path.join(output_folder,"downsample")
-        pass
+        cur_out_file = os.path.join(cur_out,file_id+".avi")
+        cur_in_file = os.path.join(cur_in,file_id+".avi")
+        dof.downsample_vid(cur_in_file,cur_out_file)
         cur_in = cur_out
 
       # Run YOLO
+      cur_in = cur_out
+      cur_in = os.path.join(cur_in,file_id+".avi")
       cur_out = os.path.join(output_folder,"yolo")
       if not os.path.exists(cur_out):
         os.mkdir(cur_out)
