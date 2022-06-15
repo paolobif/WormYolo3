@@ -41,15 +41,7 @@ from sklearn.model_selection import validation_curve
 
 # TODO: Check whether we can turn on output to get PIDs of those that need to be killed
 
-# TODO: Add bases for tooltips of Custom
-
-# TODO: Try running two at once and see how it affects process time per frame for YOLO
-
-# TODO: Add color option :)
-
 # TODO: Add widget to desktop
-
-# TODO: Text edit at top to label
 
 # TODO: Show list of files that it failed to run on
 
@@ -108,6 +100,20 @@ def updateProg():
         cur_prog = 0
         window["-SELECT_GO-"].update(disabled=False)
         window["-SELECT_CANCEL-"].update(disabled=True)
+
+        log_file_path = os.path.join(cur_dir,"log.txt")
+        log_file = open(log_file_path,"r")
+        line_count = 0
+        err_files = "Failed Files\n"
+        size = 1
+        for line in log_file:
+            if line_count % 2 == 1:
+                err_files += line
+                size+=1
+            line_count+=1
+        if err_files!="Failed Files\n":
+            window["Error_Message"].update(value=err_files,background_color="DarkGreen",visible=True)
+            window["Error_Message"].set_size((50,size))
         window.finalize()
         return
     vids = []
@@ -182,12 +188,31 @@ def cancel():
         window["Error_Message"].update(value="Not Currently Running",background_color="DarkRed",visible=True)
         return
     print(current_process.pid)
-    os.kill(current_process.pid+1, signal.SIGTERM)
+
+    #os.kill(current_process.pid+1, signal.SIGTERM)
+
+    log_file_path = os.path.join(cur_dir,"log.txt")
+    log_file = open(log_file_path,"r")
+    line_count = 0
+    err_files = "Failed Files\n"
+    size = 1
+    for line in log_file:
+        if line_count == 0:
+            os.kill(int(line),signal.SIGTERM)
+        if line_count % 2 == 1:
+            err_files += line
+            size+=1
+        line_count+=1
+
     #print(current_process.communicate())
     current_process.kill()
     current_process = None
     window["-SELECT_GO-"].update(disabled=False)
     window["-SELECT_CANCEL-"].update(disabled=True)
+    if err_files!="Failed Files\n":
+        window["Error_Message"].update(value=err_files,background_color="DarkGreen",visible=True)
+        window["Error_Message"].set_size((50,size))
+
     window.Finalize()
 
 print(cur_dir,os.path.join(cur_dir, "cfg"))
@@ -228,11 +253,11 @@ def make_window():
         [
             sg.Combo(["Lifespan","Paralysis","Custom"],default_value = "Paralysis",key="procYOLOoptions",tooltip = "Determines when a worm can be called dead",enable_events=True),
             #invis options
-            sg.Text("Threshold",size=(7,1),tooltip="Number of frames a worm has to be tracked in order to be analyzed",key="thresh-label",visible=False),
-            sg.Input(key="proc-thresh",default_text="2",size=(1,1),visible=False),
-            sg.Text("Slow Move",size=(8,1),tooltip="Number of frames overlapping by 'delta_overlap' before being called dead or paralyzed",key="slow-move-label",visible=False),
-            sg.Input(key="proc-move",default_text="15",size=(3,1),visible=False),
-            sg.Text("Delta Overlap",size=(10,1),tooltip="Percent overlap tor be called motionless",key="delta-overlap-label",visible=False),
+            sg.Text("Threshold",size=(7,1),tooltip="Number of frames a worm has to be tracked in order to be analyzed(Default 2/2)",key="thresh-label",visible=False),
+            sg.Input(key="proc-thresh",default_text="2",size=(4,1),visible=False),
+            sg.Text("Slow Move",size=(8,1),tooltip="Number of frames overlapping by 'delta_overlap' before being called dead or paralyzed (Default 15/5)",key="slow-move-label",visible=False),
+            sg.Input(key="proc-move",default_text="15",size=(4,1),visible=False),
+            sg.Text("Delta Overlap",size=(10,1),tooltip="Percent overlap tor be called motionless",key="delta-overlap-label (Default 0.95/0.8)",visible=False),
             sg.Input(key="proc-overlap",default_text="0.8",size=(4,1),visible=False)
 
         ],

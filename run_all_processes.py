@@ -19,7 +19,8 @@ global processes
 processes = []
 
 def on_kill(sig, frame):
-  open("C:/Users/cdkte/Downloads/test.txt","w+")
+  global output_file
+  output_file.close()
   for process in processes:
     try:
       process.terminate()
@@ -34,9 +35,10 @@ DEBUG=False
 cur_dir = os.path.split(__file__)[0]
 
 def run_sequential_files(do_downsample:bool, do_tod:bool, do_vid:bool, input_folder:str, output_folder:str,cfg_file:str,model_file:str,proc_threshold:int,proc_move:int,proc_overlap:float):
-  try:
-    count = 0
-    for file in os.listdir(input_folder):
+
+  count = 0
+  for file in os.listdir(input_folder):
+    try:
       count+=1
       cur_in = input_folder
       file_id = file[0:-4]
@@ -96,8 +98,13 @@ def run_sequential_files(do_downsample:bool, do_tod:bool, do_vid:bool, input_fol
         tod_csv = os.path.join(os.path.join(output_folder,"tod"),file_id+".csv")
         out_vid = os.path.join(cur_out,file_id+".avi")
         avid.makeVideo(orig_video,yolo_csv,tod_csv,out_vid)
-  except Exception as E:
-    print(file + "unsuccessful\n" + str(E))
+    except Exception as E:
+      print(file + "unsuccessful\n" + str(E))
+      output_file_path = os.path.join(cur_dir,"log.txt")
+      output_file = open(output_file_path,"a")
+      output_file.write(file+"\n")
+      output_file.write(str(E)+"\n")
+      output_file.close()
 
 def run_all_files(do_downsample:bool,do_tod:bool,input_folder:str,output_folder:str,cfg_file:str,model_file:str):
     cur_in = input_folder
@@ -184,6 +191,11 @@ def run_ToD(input_folder, output_folder):
 
 if __name__ =="__main__":
   #signal.signal(signal.SIGINT,on_kill)
+  output_file_path = os.path.join(cur_dir,"log.txt")
+  output_file = open(output_file_path,"w+")
+  output_file.write(str(os.getpid())+"\n")
+  output_file.close()
+
   dwnsmpl = sys.argv[1] == "True"
   tod = sys.argv[2] == "True"
   vid = sys.argv[3] == "True"
