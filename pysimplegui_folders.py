@@ -4,6 +4,10 @@ import time as t
 import subprocess
 import numpy as np
 import signal
+import shutil
+
+
+from sklearn.model_selection import validation_curve
 
 # Just count how many of the expected number of files there currently are
 
@@ -37,6 +41,19 @@ import signal
 
 # TODO: Check whether we can turn on output to get PIDs of those that need to be killed
 
+# TODO: Add bases for tooltips of Custom
+
+# TODO: Try running two at once and see how it affects process time per frame for YOLO
+
+# TODO: Add color option :)
+
+# TODO: Add widget to desktop
+
+# TODO: Text edit at top to label
+
+# TODO: Show list of files that it failed to run on
+
+# TODO: change window label
 
 # Technically this isn't necessary, but it makes it more clear
 global cur_prog
@@ -57,12 +74,19 @@ current_process = None
 
 
 # TODO: Do a thing with this
-IN_FOLDER = "C:/"
-OUT_FOLDER = "C:/"
+#INPUT_FOLDER = "C:/"
+#OUTPUT_FOLDER = "C:/"
+INPUT_FOLDER = "/media/mlcomp/DrugAge/gui_test/in_test"
+OUTPUT_FOLDER = "/media/mlcomp/DrugAge/gui_test/out_test"
 
 file_path = os.path.abspath(__file__)
 cur_dir = os.path.split(file_path)[0]
 print('test',cur_dir,__file__)
+
+py_path = shutil.which("python")
+if py_path is None:
+    py_path = shutil.which("python3")
+
 
 def get_folder(in_path):
     all_files = []
@@ -145,7 +169,7 @@ def start_running(do_downsample:bool,do_tod:bool,do_vids:bool,input_folder:str,o
     # Get procYOLO args
     proc_yolo_args = [window["proc-thresh"].get(),window["proc-move"].get(),window["proc-overlap"].get()]
 
-    args = ["python3",run_proc,do_downsample,do_tod,do_vids,input_folder,output_folder,cfg_file,weight_file]+proc_yolo_args
+    args = [py_path,run_proc,do_downsample,do_tod,do_vids,input_folder,output_folder,cfg_file,weight_file]+proc_yolo_args
     print(" ".join(args))
     global current_process
     current_process = subprocess.Popen(" ".join(args),shell=True)
@@ -172,59 +196,65 @@ weights_folder = os.path.join(cur_dir, "weights")
 default_weight = os.path.join(model_folder,"yolov3-spp-1cls.cfg")
 
 sg.theme("LightGreen5")
-layout = [
-    [
-        sg.Text('Model', size=(4, 1),tooltip="The format of the model to be used in YOLO"),
-        sg.Input(key="model", default_text=default_weight, size=(64, 2)),
-        sg.FileBrowse(key="-FILEBROWSE-",initial_folder=model_folder,),
-    ],
-    [
-        sg.Text('Weights', size=(4, 1),tooltip = "The trained weights to use in YOLO"),
-        sg.Input(key="weights", default_text=os.path.join(weights_folder,"416_1_4_full_best200ep.pt"), size=(64, 2)),
-        sg.FileBrowse(key="-WEIGHTSBROWSE-",initial_folder=weights_folder,),
+
+def make_window():
+    global layout, window
+    layout = [
+        [
+            sg.Text('Model', size=(6, 1),tooltip="The format of the model to be used in YOLO"),
+            sg.Input(key="model", default_text=default_weight, size=(64, 2)),
+            sg.FileBrowse(key="-FILEBROWSE-",initial_folder=model_folder,),
+        ],
+        [
+            sg.Text('Weights', size=(6, 1),tooltip = "The trained weights to use in YOLO"),
+            sg.Input(key="weights", default_text=os.path.join(weights_folder,"416_1_4_full_best200ep.pt"), size=(64, 2)),
+            sg.FileBrowse(key="-WEIGHTSBROWSE-",initial_folder=weights_folder,),
 
 
-    ],
-    [sg.Text('Input', size=(4, 1),tooltip = "The folder of videos to be processed"),
-        sg.Input(key="-IN_FOLDER-", default_text="/media/mlcomp/DrugAge/gui_test/in_test", size=(64, 2)),
-        sg.FolderBrowse(key="-IN_BROWSE-",initial_folder=INPUT_FOLDER,)
-    ],
-    [sg.Text('Output', size=(4, 1),tooltip="The folder to output results"),
-        sg.Input(key="-OUT_FOLDER-", default_text="/media/mlcomp/DrugAge/gui_test/out_test", size=(64, 2)),
-        sg.FolderBrowse(key="-OUT_BROWSE-",initial_folder=OUTPUT_FOLDER,)
-    ],
-    [ #TODO: Add checkboxes
-     sg.Checkbox("Healthspan",key="-CHECK_DOWNSAMPLE-",tooltip="Reduces the number of frames to be observed. Should only be used on long videos"),
-     sg.Checkbox("Time of Death",key="-CHECK_TOD-",tooltip = "Determine time of death or paralysis",default = True),
-     sg.Checkbox("Create Videos",key = "-CHECK_VIDS-",tooltip = "Create videos of each worm with bounding boxes marking time of death")
-    ],
-    [
-        sg.Combo(["Lifespan","Paralysis","Custom"],default_value = "Paralysis",key="procYOLOoptions",tooltip = "Determines when a worm can be called dead",enable_events=True),
-        #invis options
-        sg.Text("Threshold",size=(7,1),tooltip="Number of frames a worm has to be tracked in order to be analyzed",key="thresh-label",visible=False),
-        sg.Input(key="proc-thresh",default_text="2",size=(1,1),visible=False),
-        sg.Text("Slow Move",size=(8,1),tooltip="Number of frames overlapping by 'delta_overlap' before being called dead or paralyzed",key="slow-move-label",visible=False),
-        sg.Input(key="proc-move",default_text="15",size=(3,1),visible=False),
-        sg.Text("Delta Overlap",size=(10,1),tooltip="Percent overlap tor be called motionless",key="delta-overlap-label",visible=False),
-        sg.Input(key="proc-overlap",default_text="0.8",size=(4,1),visible=False)
+        ],
+        [sg.Text('Input', size=(6, 1),tooltip = "The folder of videos to be processed"),
+            sg.Input(key="-IN_FOLDER-", default_text="/media/mlcomp/DrugAge/gui_test/in_test", size=(64, 2)),
+            sg.FolderBrowse(key="-IN_BROWSE-",initial_folder=INPUT_FOLDER,)
+        ],
+        [sg.Text('Output', size=(6, 1),tooltip="The folder to output results"),
+            sg.Input(key="-OUT_FOLDER-", default_text="/media/mlcomp/DrugAge/gui_test/out_test", size=(64, 2)),
+            sg.FolderBrowse(key="-OUT_BROWSE-",initial_folder=OUTPUT_FOLDER,)
+        ],
+        [ #TODO: Add checkboxes
+        sg.Checkbox("Healthspan",key="-CHECK_DOWNSAMPLE-",tooltip="Reduces the number of frames to be observed. Should only be used on long videos"),
+        sg.Checkbox("Time of Death",key="-CHECK_TOD-",tooltip = "Determine time of death or paralysis",default = True,enable_events=True),
+        sg.Checkbox("Create Videos",key = "-CHECK_VIDS-",tooltip = "Create videos of each worm with bounding boxes marking time of death")
+        ],
+        [
+            sg.Combo(["Lifespan","Paralysis","Custom"],default_value = "Paralysis",key="procYOLOoptions",tooltip = "Determines when a worm can be called dead",enable_events=True),
+            #invis options
+            sg.Text("Threshold",size=(7,1),tooltip="Number of frames a worm has to be tracked in order to be analyzed",key="thresh-label",visible=False),
+            sg.Input(key="proc-thresh",default_text="2",size=(1,1),visible=False),
+            sg.Text("Slow Move",size=(8,1),tooltip="Number of frames overlapping by 'delta_overlap' before being called dead or paralyzed",key="slow-move-label",visible=False),
+            sg.Input(key="proc-move",default_text="15",size=(3,1),visible=False),
+            sg.Text("Delta Overlap",size=(10,1),tooltip="Percent overlap tor be called motionless",key="delta-overlap-label",visible=False),
+            sg.Input(key="proc-overlap",default_text="0.8",size=(4,1),visible=False)
 
-    ],
-    [
-        sg.Button("Go", key = "-SELECT_GO-"),
-        sg.Button("Cancel", key="-SELECT_CANCEL-"),
-    ],
-    [
-        sg.ProgressBar(100,orientation='h', size=(20,20),key="progbar",border_width=4,bar_color=['Red','Green'])
-    ],
-    [
-        sg.ProgressBar(100,orientation='h', size = (20,20), key = "total_progbar",border_width=4,bar_color=['LightGreen','Green'])
-    ],
-    [
-        sg.Text(text="Test Error",key="Error_Message",size=(50,1),text_color="Red",background_color="DarkRed", visible=False)
+        ],
+        [
+            sg.Button("Go", key = "-SELECT_GO-"),
+            sg.Button("Cancel", key="-SELECT_CANCEL-"),
+        ],
+        [
+            sg.ProgressBar(100,orientation='h', size=(20,20),key="progbar",border_width=4,bar_color=['Red','Green'])
+        ],
+        [
+            sg.ProgressBar(100,orientation='h', size = (20,20), key = "total_progbar",border_width=4,bar_color=['LightGreen','Green'])
+        ],
+        [
+            sg.Text(text="Test Error",key="Error_Message",size=(50,1),text_color="Red",background_color="DarkRed", visible=False)
+        ],
+        [
+            sg.Combo(["LightGreen","LightRed"],default_value = "LightGreen",key="theme-options",tooltip = "Changes the color of the window",enable_events=True),
+        ]
     ]
-]
-
-window = sg.Window('test reset browse', layout)
+    window = sg.Window('test reset browse', layout)
+make_window()
 
 start = t.time()
 while True:
@@ -295,6 +325,20 @@ while True:
             number_of_functions += 1
         out_directory = output_folder
         in_directory = input_folder
+    elif event == "-CHECK_TOD-":
+        tod = values["-CHECK_TOD-"]
+        if not tod:
+            window["-CHECK_VIDS-"].update(value=False)
+
+    elif event == "theme-options":
+        print(values["theme-options"])
+        if values["theme-options"]=="LightGreen":
+            sg.theme("LightGreen5")
+        if values["theme-options"]=="LightRed":
+            sg.theme("DarkRed1")
+
+        window.close()
+        make_window()
 
     if not current_process is None:
         updateProg()

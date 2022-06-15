@@ -39,22 +39,25 @@ def run_sequential_files(do_downsample:bool, do_tod:bool, do_vid:bool, input_fol
     for file in os.listdir(input_folder):
       count+=1
       cur_in = input_folder
-      file_id = os.path.split(cur_in)[-1][0:-4]
-
+      file_id = file[0:-4]
+      print(file_id+"!")
       if do_downsample:
+        print("Going down")
         cur_out = os.path.join(output_folder,"downsample")
+        if not os.path.exists(cur_out):
+          os.mkdir(cur_out)
         cur_out_file = os.path.join(cur_out,file_id+".avi")
         cur_in_file = os.path.join(cur_in,file_id+".avi")
         dof.downsample_vid(cur_in_file,cur_out_file)
         cur_in = cur_out
 
       # Run YOLO
-      cur_in = cur_out
-      cur_in = os.path.join(cur_in,file_id+".avi")
+      cur_in_file = os.path.join(cur_in,file_id+".avi")
+      print(cur_in_file)
       cur_out = os.path.join(output_folder,"yolo")
       if not os.path.exists(cur_out):
         os.mkdir(cur_out)
-      vab.runYOLOonOne(model_file,cfg_file,cur_in,cur_out)
+      vab.runYOLOonOne(model_file,cfg_file,cur_in_file,cur_out)
 
       # Run Sort
       cur_in = cur_out
@@ -80,12 +83,15 @@ def run_sequential_files(do_downsample:bool, do_tod:bool, do_vid:bool, input_fol
       # TODO: Possible issue YOLO output is xy-height while analyze sort may be x1,y1,x2,y2
       #if count%video_divide == 0:
       #  make_video()
-      if do_vid:
+      if do_vid and do_tod:
         cur_out = os.path.join(output_folder,"vids")
         if not os.path.exists(cur_out):
           os.mkdir(cur_out)
 
-        orig_video = os.path.join(input_folder,file)
+        if do_downsample:
+          orig_video = os.path.join(os.path.join(output_folder,"downsample"),file)
+        else:
+          orig_video = os.path.join(input_folder,file)
         yolo_csv = os.path.join(os.path.join(output_folder,"yolo"),file_id+".csv")
         tod_csv = os.path.join(os.path.join(output_folder,"tod"),file_id+".csv")
         out_vid = os.path.join(cur_out,file_id+".avi")
