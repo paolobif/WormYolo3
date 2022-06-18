@@ -70,12 +70,13 @@ $ python3 vid_annotater_bulk.py -- include params
 
 * Dataset of 1068 images 1080x1920
 * 29,628 individual worms
+* [downlaod latest weights](https://www.dropbox.com/sh/xx4kalzjxrkej26/AABzftltaYpoQiyNhkwQQOqCa?dl=1)
 
 * #### Training
   * Pre-trained with weights from the COCO dataset found [here](https://pjreddie.com/media/files/yolov3-spp.weights).
   * Each image is gridded into several 416x416 slices of overlaying crops.
   * Images are then upscalled to 608x608px.
-  * Used config found in [~/cfg/yolov3-spp-1cls.cfg](~/cfg/yolov3-spp-1cls.cfg).
+  * Model configuration -> [~/cfg/yolov3-spp-1cls.cfg](~/cfg/yolov3-spp-1cls.cfg).
 
 
 ----
@@ -92,7 +93,7 @@ Sample Cropping:
 
 
 
-[downlaod latest weights](https://www.dropbox.com/sh/xx4kalzjxrkej26/AABzftltaYpoQiyNhkwQQOqCa?dl=1)
+
 
 
 ## Citation
