@@ -72,6 +72,7 @@ $ python3 vid_annotater_bulk.py -- include params
 ***WIP:***
 *Currently working on a test environmen for others to quickly experiemt with our pipeline.*
 
+
 ---
 
 ## Weights Info
