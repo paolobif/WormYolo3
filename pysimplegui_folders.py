@@ -11,14 +11,9 @@ from sklearn.model_selection import validation_curve
 
 # Just count how many of the expected number of files there currently are
 
-# TODO: video & TOD
-
 # TODO: TOD -> timelapse analysis
 
 # TODO: MAtch folder names and labels in gUI
-
-# Change input to YOLO output and run process-yolo?
-# POSSIBLE TODO: Continue processing even through corrupted files
 
 # Possible TODO: If there's a corrupted file, remove already processed files, then continue
 # Possible TODO: Just process YOLO output, rather than run YOLO, such as add checkbox for YOLO
@@ -29,21 +24,11 @@ from sklearn.model_selection import validation_curve
 # TODO: Add circle exclusion (check Paolo-dev in procYOLOnu)
 
 # TODO: At the end, add option to make annotated videos
-    #  Just bounding boxes and ToD, ask Ben
-    #  Checkmark option for creating video of each output
-    #  Takes time to make & space
     #  Options: Every video, every 10th video, every 25th video
-
-
-# TODO: Add variable for default input/output path
 
 # TODO: Add SFW easter eggs! :)
 
-# TODO: Check whether we can turn on output to get PIDs of those that need to be killed
-
 # TODO: Add widget to desktop
-
-# TODO: Show list of files that it failed to run on
 
 # TODO: change window label
 
@@ -66,8 +51,6 @@ current_process = None
 
 
 # TODO: Do a thing with this
-#INPUT_FOLDER = "C:/"
-#OUTPUT_FOLDER = "C:/"
 INPUT_FOLDER = "/media/mlcomp/DrugAge/gui_test/in_test"
 OUTPUT_FOLDER = "/media/mlcomp/DrugAge/gui_test/out_test"
 
