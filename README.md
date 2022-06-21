@@ -49,7 +49,7 @@ $ pip install -U -r requirements.txt
 $ pip install torch==1.9.1+cu111 torchvision==0.10.1+cu111 torchaudio==0.9.1 -f https://download.pytorch.org/whl/torch_stable.html
 ```
 
-* Download Wieghts
+* Download Weights
 
 ```bash
 $ bash weights/download_yolov3_weights.sh
@@ -60,7 +60,7 @@ $ bash weights/download_yolov3_weights.sh
 ```bash
 $ python3 vid_annotater_bulk.py -- include params
 
-# Will run with defualt params on specified path.
+# Will run with default params on specified path.
 # Check docs if you wish to modify.
 ```
 
@@ -70,8 +70,8 @@ $ python3 vid_annotater_bulk.py -- include params
 ## Google Colab
 
 ***WIP:***
-*Currently working on a test environmen for others to quickly experiemt with our pipeline.*
-
+*Experimental test environment for others to quickly experiment with our pipeline.*
+[google colab env](https://colab.research.google.com/drive/1h41DYVcNlJCKzw9ggBItEPgXwI09mGX6?usp=sharing)
 
 ---
 
@@ -90,7 +90,7 @@ $ python3 vid_annotater_bulk.py -- include params
       | ----- | ----- | ----- | ----- |
       |  ![Crops](https://drive.google.com/uc?export=view&id=1bgnw-oaV3q2784TXzcWQg_DbM1zkNSft)| ![Crops](https://drive.google.com/uc?export=view&id=14U1OxpQSdBbYyXIlC6cEclB3XiTBWoBn)| ![Crops](https://drive.google.com/uc?export=view&id=18VkqCZxylZ0PBe3Lj8cHHZr_VMph9Aoq)| ![Crops](https://drive.google.com/uc?export=view&id=18VkqCZxylZ0PBe3Lj8cHHZr_VMph9Aoq)
 
-  * Images are then upscalled to 608x608px.
+  * Images are then up-scaled to 608x608px.
   * Model configuration -> [~/cfg/yolov3-spp-1cls.cfg](~/cfg/yolov3-spp-1cls.cfg).
 
 

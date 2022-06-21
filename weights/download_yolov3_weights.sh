@@ -29,4 +29,4 @@ weights=https://www.dropbox.com/sh/xx4kalzjxrkej26/AABzftltaYpoQiyNhkwQQOqCa?dl=
 echo "downloading weights"
 wget -O ./weights/weights.zip $weights
 unzip ./weights/weights.zip -d ./weights
-
+echo "weights downloaded"
