@@ -11,11 +11,6 @@ from sklearn.model_selection import validation_curve
 
 # Just count how many of the expected number of files there currently are
 
-# TODO: TOD -> timelapse analysis
-
-# TODO: MAtch folder names and labels in gUI
-
-# Possible TODO: If there's a corrupted file, remove already processed files, then continue
 # Possible TODO: Just process YOLO output, rather than run YOLO, such as add checkbox for YOLO
 
 # TODO: Move file when done processing (or check if already processed) and run YOLO->Sort,etc. sequentially
@@ -27,8 +22,6 @@ from sklearn.model_selection import validation_curve
     #  Options: Every video, every 10th video, every 25th video
 
 # TODO: Add SFW easter eggs! :)
-
-# TODO: Add widget to desktop
 
 # TODO: change window label
 
@@ -228,9 +221,9 @@ def make_window():
             sg.Input(key="-OUT_FOLDER-", default_text="/media/mlcomp/DrugAge/gui_test/out_test", size=(64, 2)),
             sg.FolderBrowse(key="-OUT_BROWSE-",initial_folder=OUTPUT_FOLDER,)
         ],
-        [ #TODO: Add checkboxes
+        [
         sg.Checkbox("Healthspan",key="-CHECK_DOWNSAMPLE-",tooltip="Reduces the number of frames to be observed. Should only be used on long videos"),
-        sg.Checkbox("Time of Death",key="-CHECK_TOD-",tooltip = "Determine time of death or paralysis",default = True,enable_events=True),
+        sg.Checkbox("Timelapse Analysis",key="-CHECK_TOD-",tooltip = "Determine time of death or paralysis",default = True,enable_events=True),
         sg.Checkbox("Create Videos",key = "-CHECK_VIDS-",tooltip = "Create videos of each worm with bounding boxes marking time of death")
         ],
         [

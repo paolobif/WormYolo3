@@ -42,10 +42,9 @@ def run_sequential_files(do_downsample:bool, do_tod:bool, do_vid:bool, input_fol
       count+=1
       cur_in = input_folder
       file_id = file[0:-4]
-      print(file_id+"!")
+      (file_id+"!")
       if do_downsample:
-        print("Going down")
-        cur_out = os.path.join(output_folder,"downsample")
+        cur_out = os.path.join(output_folder,"reduced-frame-healthspan")
         if not os.path.exists(cur_out):
           os.mkdir(cur_out)
         cur_out_file = os.path.join(cur_out,file_id+".avi")
@@ -63,7 +62,7 @@ def run_sequential_files(do_downsample:bool, do_tod:bool, do_vid:bool, input_fol
 
       # Run Sort
       cur_in = cur_out
-      cur_out = os.path.join(output_folder,"sort")
+      cur_out = os.path.join(output_folder,"sorted-by-id")
       if not os.path.exists(cur_out):
         os.mkdir(cur_out)
       cur_in_file = os.path.join(cur_in,file_id+".csv")
@@ -74,28 +73,24 @@ def run_sequential_files(do_downsample:bool, do_tod:bool, do_vid:bool, input_fol
       # Don't change cur_in! Still pulls from yolo data
       if do_tod:
         cur_in_file = os.path.join(cur_in,file_id+".csv")
-        cur_out = os.path.join(output_folder,"tod")
+        cur_out = os.path.join(output_folder,"timelapse-analysis")
         if not os.path.exists(cur_out):
           os.mkdir(cur_out)
         cur_out_file = os.path.join(cur_out,file_id+".csv")
         pYn.procYOLOonOne(cur_in_file,cur_out_file,proc_threshold,proc_move,proc_overlap)
 
-      # TODO: Make this
-      # Every bounding box is on frame, dead worms have bright bounding box and ID.
-      # TODO: Possible issue YOLO output is xy-height while analyze sort may be x1,y1,x2,y2
-      #if count%video_divide == 0:
-      #  make_video()
+
       if do_vid and do_tod:
         cur_out = os.path.join(output_folder,"vids")
         if not os.path.exists(cur_out):
           os.mkdir(cur_out)
 
         if do_downsample:
-          orig_video = os.path.join(os.path.join(output_folder,"downsample"),file)
+          orig_video = os.path.join(os.path.join(output_folder,"reduced-frame-healthspan"),file)
         else:
           orig_video = os.path.join(input_folder,file)
         yolo_csv = os.path.join(os.path.join(output_folder,"yolo"),file_id+".csv")
-        tod_csv = os.path.join(os.path.join(output_folder,"tod"),file_id+".csv")
+        tod_csv = os.path.join(os.path.join(output_folder,"timelapse-analysis"),file_id+".csv")
         out_vid = os.path.join(cur_out,file_id+".avi")
         avid.makeVideo(orig_video,yolo_csv,tod_csv,out_vid)
     except Exception as E:
@@ -109,7 +104,7 @@ def run_sequential_files(do_downsample:bool, do_tod:bool, do_vid:bool, input_fol
 def run_all_files(do_downsample:bool,do_tod:bool,input_folder:str,output_folder:str,cfg_file:str,model_file:str):
     cur_in = input_folder
     if do_downsample:
-        cur_out = os.path.join(output_folder,"downsample")
+        cur_out = os.path.join(output_folder,"reduced-frame-healthspan")
         if not os.path.exists(cur_out):
           os.mkdir(cur_out)
         run_downsample(input_folder, cur_out)
@@ -121,7 +116,7 @@ def run_all_files(do_downsample:bool,do_tod:bool,input_folder:str,output_folder:
     run_yolo(cur_in, cur_out, cfg_file,model_file)
     cur_in = cur_out
 
-    cur_out = os.path.join(output_folder,"sort")
+    cur_out = os.path.join(output_folder,"sorted-by-id")
     if not os.path.exists(cur_out):
           os.mkdir(cur_out)
     run_sort(cur_in, cur_out)
@@ -136,7 +131,6 @@ def run_all_files(do_downsample:bool,do_tod:bool,input_folder:str,output_folder:
 
 
 def run_yolo(input_folder, output_folder, cfg_file, model_file):
-    # TODO: Add yolo file (Make yolo file)
     if not DEBUG:
       vid_bulk_file = os.path.join(cur_dir,"vid_annotater_bulk.py")
       args = ["python",vid_bulk_file,input_folder,output_folder,cfg_file,model_file]
@@ -152,7 +146,6 @@ def run_yolo(input_folder, output_folder, cfg_file, model_file):
 
 
 def run_downsample(input_folder,output_folder):
-    # TODO: Make downsample file and checkbox
     if not DEBUG:
       pass
     else:
@@ -161,7 +154,6 @@ def run_downsample(input_folder,output_folder):
         t.sleep(3)
 
 def run_sort(input_folder, output_folder):
-    # TODO: Make sort file and checkbox
     if not DEBUG:
       vid_bulk_file = os.path.join(cur_dir,"sort_forward_bulk.py")
       args = ["python",vid_bulk_file,input_folder,output_folder]
@@ -175,7 +167,6 @@ def run_sort(input_folder, output_folder):
         t.sleep(4)
 
 def run_ToD(input_folder, output_folder):
-    # TODO: Get time of death calls, add checkbox
     if not DEBUG:
       vid_bulk_file = os.path.join(cur_dir,"procYOLOnu.py")
       args = ["python",vid_bulk_file,input_folder,output_folder]
