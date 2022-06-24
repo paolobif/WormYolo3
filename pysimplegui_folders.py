@@ -231,7 +231,7 @@ def make_window():
             sg.Input(key="proc-thresh",default_text="2",size=(4,1),visible=False),
             sg.Text("Slow Move",size=(8,1),tooltip="Number of frames overlapping by 'delta_overlap' before being called paralyzed or dead (Default 15/5)",key="slow-move-label",visible=False),
             sg.Input(key="proc-move",default_text="15",size=(4,1),visible=False),
-            sg.Text("Delta Overlap",size=(10,1),tooltip="Percent overlap tor be called motionless",key="delta-overlap-label (Default 0.95/0.8)",visible=False),
+            sg.Text("Delta Overlap",size=(10,1),tooltip="Percent overlap tor be called motionless (Default 0.95/0.8)",key="delta-overlap-label",visible=False),
             sg.Input(key="proc-overlap",default_text="0.8",size=(4,1),visible=False)
         ],
         [
