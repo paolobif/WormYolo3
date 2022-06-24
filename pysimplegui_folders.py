@@ -18,9 +18,6 @@ from sklearn.model_selection import validation_curve
 # TODO: Track most recent and delete it when interrupted
 # TODO: Add circle exclusion (check Paolo-dev in procYOLOnu)
 
-# TODO: At the end, add option to make annotated videos
-    #  Options: Every video, every 10th video, every 25th video
-
 # TODO: Add SFW easter eggs! :)
 
 # Technically this isn't necessary, but it makes it more clear
@@ -133,7 +130,7 @@ def updateProg():
         total_prog = 0
     max_prog = len(os.listdir(in_directory))
 
-def start_running(do_downsample:bool,do_tod:bool,do_vids:bool,input_folder:str,output_folder:str,cfg_file:str,weight_file:str,vid_count:str):
+def start_running(do_downsample:bool,do_tod:bool,do_vids:bool,input_folder:str,output_folder:str,cfg_file:str,weight_file:str,vid_count:str,start_running:bool):
     print(cfg_file,weight_file)
     if not (os.path.exists(input_folder) and os.path.exists(output_folder) and os.path.exists(cfg_file) and os.path.exists(weight_file)):
         return False
@@ -147,9 +144,11 @@ def start_running(do_downsample:bool,do_tod:bool,do_vids:bool,input_folder:str,o
     run_proc = os.path.join(cur_dir,"run_all_processes.py")
 
     # Get procYOLO args
-    proc_yolo_args = [window["proc-thresh"].get(),window["proc-move"].get(),window["proc-overlap"].get(),window["VidCount"].get()]
+    proc_yolo_args = [window["proc-thresh"].get(),window["proc-move"].get(),window["proc-overlap"].get()]
 
-    args = [py_path,run_proc,do_downsample,do_tod,do_vids,input_folder,output_folder,cfg_file,weight_file]+proc_yolo_args
+    more_args = [window["VidCount"].get(),start_running]
+
+    args = [py_path,run_proc,do_downsample,do_tod,do_vids,input_folder,output_folder,cfg_file,weight_file]+proc_yolo_args + more_args
     print(" ".join(args))
     global current_process
     current_process = subprocess.Popen(" ".join(args),shell=True)
@@ -222,7 +221,8 @@ def make_window():
         [
         sg.Checkbox("Healthspan",key="-CHECK_DOWNSAMPLE-",tooltip="Reduces the number of frames to be observed. Should only be used on long videos"),
         sg.Checkbox("Timelapse Analysis",key="-CHECK_TOD-",tooltip = "Determine time of death or paralysis",default = True,enable_events=True),
-        sg.Checkbox("Create Videos",key = "-CHECK_VIDS-",tooltip = "Create videos of each worm with bounding boxes marking time of death", visible = True, enable_events = True)
+        sg.Checkbox("Create Videos",key = "-CHECK_VIDS-",tooltip = "Create videos of each worm with bounding boxes marking time of death", visible = True, enable_events = True),
+        sg.Checkbox("Move Videos",key = "-CHECK_MOVE-",tooltip = "Move finished videos to the output folder to show they're done.")
         ],
         [
             sg.Combo(["Lifespan","Paralysis","Custom"],default_value = "Paralysis",key="procYOLOoptions",tooltip = "Determines when a worm can be called dead",enable_events=True),
@@ -315,7 +315,8 @@ while True:
         tod = values["-CHECK_TOD-"]
         vids = values["-CHECK_VIDS-"]
         vid_count = values["VidCount"]
-        if not start_running(downsample,tod,vids,input_folder,output_folder,cfg_file,weight_file,vid_count):
+        move_vids = values["-CHECK_MOVE-"]
+        if not start_running(downsample,tod,vids,input_folder,output_folder,cfg_file,weight_file,vid_count,move_vids):
             window["Error_Message"].update(value="Invalid Files",background_color="DarkRed",visible=True)
         else:
             window["Error_Message"].update(visible=False)

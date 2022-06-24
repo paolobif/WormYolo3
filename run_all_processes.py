@@ -10,6 +10,7 @@ import sort_forward_bulk as sfb
 import cv2
 import annotated_vid as avid
 import downsample_frames as dof
+import shutil
 
 """
 Runs all the files
@@ -34,7 +35,7 @@ DEBUG=False
 
 cur_dir = os.path.split(__file__)[0]
 
-def run_sequential_files(do_downsample:bool, do_tod:bool, do_vid:bool, input_folder:str, output_folder:str,cfg_file:str,model_file:str,proc_threshold:int,proc_move:int,proc_overlap:float,vid_count:bool):
+def run_sequential_files(do_downsample:bool, do_tod:bool, do_vid:bool, input_folder:str, output_folder:str,cfg_file:str,model_file:str,proc_threshold:int,proc_move:int,proc_overlap:float,vid_count:int,move_vids:bool):
 
   count = 0
   for file in os.listdir(input_folder):
@@ -93,6 +94,11 @@ def run_sequential_files(do_downsample:bool, do_tod:bool, do_vid:bool, input_fol
         tod_csv = os.path.join(os.path.join(output_folder,"timelapse-analysis"),file_id+".csv")
         out_vid = os.path.join(cur_out,file_id+".avi")
         avid.makeVideo(orig_video,yolo_csv,tod_csv,out_vid)
+      if move_vids:
+        cur_out = os.path.join(output_folder,"finished")
+        in_file = os.path.join(input_folder,file)
+        out_file = os.path.join(cur_out,file)
+        shutil.move(in_file,out_file)
     except Exception as E:
       print(file + "unsuccessful\n" + str(E))
       output_file_path = os.path.join(cur_dir,"log.txt")
@@ -198,5 +204,6 @@ if __name__ =="__main__":
   proc_move = int(sys.argv[9])
   proc_overlap = float(sys.argv[10])
   vid_count = int(sys.argv[11])
+  move_vids = sys.argv[12] == "True"
   #run_all_files(dwnsmpl,tod,in_path,out,cfg_file,weight_file)
-  run_sequential_files(dwnsmpl,tod,vid,in_path,out,cfg_file,weight_file,proc_thresh,proc_move,proc_overlap,vid_count)
+  run_sequential_files(dwnsmpl,tod,vid,in_path,out,cfg_file,weight_file,proc_thresh,proc_move,proc_overlap,vid_count,move_vids)
