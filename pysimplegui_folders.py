@@ -219,10 +219,10 @@ def make_window():
             sg.FolderBrowse(key="-OUT_BROWSE-",initial_folder=OUTPUT_FOLDER,)
         ],
         [
+        sg.Checkbox("Move Videos",key = "-CHECK_MOVE-",tooltip = "Move finished videos to the output folder to show they're done."),
         sg.Checkbox("Healthspan",key="-CHECK_DOWNSAMPLE-",tooltip="Reduces the number of frames to be observed. Should only be used on long videos"),
         sg.Checkbox("Timelapse Analysis",key="-CHECK_TOD-",tooltip = "Determine time of death or paralysis",default = True,enable_events=True),
-        sg.Checkbox("Create Videos",key = "-CHECK_VIDS-",tooltip = "Create videos of each worm with bounding boxes marking time of death", visible = True, enable_events = True),
-        sg.Checkbox("Move Videos",key = "-CHECK_MOVE-",tooltip = "Move finished videos to the output folder to show they're done.")
+        sg.Checkbox("Create Videos",key = "-CHECK_VIDS-",tooltip = "Create videos of each worm with bounding boxes marking time of death", visible = True, enable_events = True)
         ],
         [
             sg.Combo(["Lifespan","Paralysis","Custom"],default_value = "Paralysis",key="procYOLOoptions",tooltip = "Determines when a worm can be called dead",enable_events=True),
@@ -233,7 +233,6 @@ def make_window():
             sg.Input(key="proc-move",default_text="15",size=(4,1),visible=False),
             sg.Text("Delta Overlap",size=(10,1),tooltip="Percent overlap tor be called motionless",key="delta-overlap-label (Default 0.95/0.8)",visible=False),
             sg.Input(key="proc-overlap",default_text="0.8",size=(4,1),visible=False)
-
         ],
         [
             sg.Text("Skip videos", key = "skip_vid_text",visible = False),
