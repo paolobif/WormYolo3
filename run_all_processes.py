@@ -34,7 +34,7 @@ DEBUG=False
 
 cur_dir = os.path.split(__file__)[0]
 
-def run_sequential_files(do_downsample:bool, do_tod:bool, do_vid:bool, input_folder:str, output_folder:str,cfg_file:str,model_file:str,proc_threshold:int,proc_move:int,proc_overlap:float):
+def run_sequential_files(do_downsample:bool, do_tod:bool, do_vid:bool, input_folder:str, output_folder:str,cfg_file:str,model_file:str,proc_threshold:int,proc_move:int,proc_overlap:float,vid_count:bool):
 
   count = 0
   for file in os.listdir(input_folder):
@@ -80,7 +80,7 @@ def run_sequential_files(do_downsample:bool, do_tod:bool, do_vid:bool, input_fol
         pYn.procYOLOonOne(cur_in_file,cur_out_file,proc_threshold,proc_move,proc_overlap)
 
 
-      if do_vid and do_tod:
+      if do_vid and do_tod and count % vid_count == 0:
         cur_out = os.path.join(output_folder,"vids")
         if not os.path.exists(cur_out):
           os.mkdir(cur_out)
@@ -197,5 +197,6 @@ if __name__ =="__main__":
   proc_thresh = int(sys.argv[8])
   proc_move = int(sys.argv[9])
   proc_overlap = float(sys.argv[10])
+  vid_count = int(sys.argv[11])
   #run_all_files(dwnsmpl,tod,in_path,out,cfg_file,weight_file)
-  run_sequential_files(dwnsmpl,tod,vid,in_path,out,cfg_file,weight_file,proc_thresh,proc_move,proc_overlap)
+  run_sequential_files(dwnsmpl,tod,vid,in_path,out,cfg_file,weight_file,proc_thresh,proc_move,proc_overlap,vid_count)
