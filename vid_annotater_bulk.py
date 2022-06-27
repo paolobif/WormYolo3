@@ -91,7 +91,7 @@ class YoloToCSV():
         out_df = pd.DataFrame(csv_outputs)
         return out_df
 
-def runYOLOonOne(weights_path,cfg_file,vid_path,out_path):
+def runYOLOonOne(weights_path,cfg_file,vid_path,out_path,do_circle = False, interval = 200):
     ## Declare settings for nn
     ## make sure to change these prarameters for your work enviroment
     settings = {'model_def': cfg_file,
@@ -119,17 +119,25 @@ def runYOLOonOne(weights_path,cfg_file,vid_path,out_path):
     csv_out_path = f"{os.path.join(out_path, video_name)}.csv"
     #out_video_path = f"{OUT_PATH}/{os.path.basename(VID_PATH).strip('.avi')}_yolo.avi"
 
+    if do_circle:
+        crop_circle = ImageCircleCrop(interval)
+
 
     for _ in range(total_frame_count - 1):
         ret, frame = vid.read()
         frame_count = vid.get(cv2.CAP_PROP_POS_FRAMES)
         print(os.getpid())
 
+
         if frame_count == 1:
             height, width, channels = frame.shape
             print(height, width)
             #fourcc = cv2.VideoWriter_fourcc(*"MJPG")
             #writer = cv2.VideoWriter(out_video_path, fourcc, 10, (width, height), True)
+
+        if do_circle:
+            frame = crop_circle.update(frame)
+
         ToCSV = YoloToCSV(model, frame, frame_count)
         ToCSV.write_to_csv(csv_out_path)
         #img_out_path =  f"{os.path.join(OUT_PATH, video_name)}_{frame_count}.png"

@@ -1,6 +1,5 @@
 import os
 import sys
-from tabnanny import process_tokens
 import time as t
 import signal
 import subprocess
@@ -35,7 +34,7 @@ DEBUG=False
 
 cur_dir = os.path.split(__file__)[0]
 
-def run_sequential_files(do_downsample:bool, do_tod:bool, do_vid:bool, input_folder:str, output_folder:str,cfg_file:str,model_file:str,proc_threshold:int,proc_move:int,proc_overlap:float,vid_count:int,move_vids:bool):
+def run_sequential_files(do_downsample:bool, do_tod:bool, do_vid:bool, input_folder:str, output_folder:str,cfg_file:str,model_file:str,proc_threshold:int,proc_move:int,proc_overlap:float,vid_count:int,move_vids:bool,do_circle:bool,circle_interval:int):
 
   count = 0
   for file in os.listdir(input_folder):
@@ -59,7 +58,7 @@ def run_sequential_files(do_downsample:bool, do_tod:bool, do_vid:bool, input_fol
       cur_out = os.path.join(output_folder,"yolo")
       if not os.path.exists(cur_out):
         os.mkdir(cur_out)
-      vab.runYOLOonOne(model_file,cfg_file,cur_in_file,cur_out)
+      vab.runYOLOonOne(model_file,cfg_file,cur_in_file,cur_out,do_circle,circle_interval)
 
       # Run Sort
       cur_in = cur_out
@@ -96,6 +95,8 @@ def run_sequential_files(do_downsample:bool, do_tod:bool, do_vid:bool, input_fol
         avid.makeVideo(orig_video,yolo_csv,tod_csv,out_vid)
       if move_vids:
         cur_out = os.path.join(output_folder,"finished")
+        if not os.path.exists(cur_out):
+          os.mkdir(cur_out)
         in_file = os.path.join(input_folder,file)
         out_file = os.path.join(cur_out,file)
         shutil.move(in_file,out_file)
@@ -205,5 +206,7 @@ if __name__ =="__main__":
   proc_overlap = float(sys.argv[10])
   vid_count = int(sys.argv[11])
   move_vids = sys.argv[12] == "True"
+  do_circle = sys.argv[13] == "True"
+  circle_val = int(sys.argv[14])
   #run_all_files(dwnsmpl,tod,in_path,out,cfg_file,weight_file)
-  run_sequential_files(dwnsmpl,tod,vid,in_path,out,cfg_file,weight_file,proc_thresh,proc_move,proc_overlap,vid_count,move_vids)
+  run_sequential_files(dwnsmpl,tod,vid,in_path,out,cfg_file,weight_file,proc_thresh,proc_move,proc_overlap,vid_count,move_vids,do_circle,circle_val)

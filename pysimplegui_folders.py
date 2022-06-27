@@ -13,9 +13,6 @@ from sklearn.model_selection import validation_curve
 
 # Possible TODO: Just process YOLO output, rather than run YOLO, such as add checkbox for YOLO
 
-# TODO: Move file when done processing (or check if already processed) and run YOLO->Sort,etc. sequentially
-
-# TODO: Track most recent and delete it when interrupted
 # TODO: Add circle exclusion (check Paolo-dev in procYOLOnu)
 
 # TODO: Add SFW easter eggs! :)
@@ -130,7 +127,7 @@ def updateProg():
         total_prog = 0
     max_prog = len(os.listdir(in_directory))
 
-def start_running(do_downsample:bool,do_tod:bool,do_vids:bool,input_folder:str,output_folder:str,cfg_file:str,weight_file:str,vid_count:str,start_running:bool):
+def start_running(do_downsample:bool,do_tod:bool,do_vids:bool,input_folder:str,output_folder:str,cfg_file:str,weight_file:str,vid_count:str,start_running:bool,do_circles:bool,circle_val:str):
     print(cfg_file,weight_file)
     if not (os.path.exists(input_folder) and os.path.exists(output_folder) and os.path.exists(cfg_file) and os.path.exists(weight_file)):
         return False
@@ -146,7 +143,7 @@ def start_running(do_downsample:bool,do_tod:bool,do_vids:bool,input_folder:str,o
     # Get procYOLO args
     proc_yolo_args = [window["proc-thresh"].get(),window["proc-move"].get(),window["proc-overlap"].get()]
 
-    more_args = [window["VidCount"].get(),start_running]
+    more_args = [window["VidCount"].get(),str(start_running),str(do_circles),circle_val]
 
     args = [py_path,run_proc,do_downsample,do_tod,do_vids,input_folder,output_folder,cfg_file,weight_file]+proc_yolo_args + more_args
     print(" ".join(args))
@@ -221,6 +218,7 @@ def make_window():
         [
         sg.Checkbox("Move Videos",key = "-CHECK_MOVE-",tooltip = "Move finished videos to the output folder to show they're done."),
         sg.Checkbox("Healthspan",key="-CHECK_DOWNSAMPLE-",tooltip="Reduces the number of frames to be observed. Should only be used on long videos"),
+        sg.Checkbox("Circle Crop", key = "-CHECK_CIRCLES-",tooltip = "Crops the video to only include the plate while running YOLO. May take longer but provide more accurate results.",enable_events= True),
         sg.Checkbox("Timelapse Analysis",key="-CHECK_TOD-",tooltip = "Determine time of death or paralysis",default = True,enable_events=True),
         sg.Checkbox("Create Videos",key = "-CHECK_VIDS-",tooltip = "Create videos of each worm with bounding boxes marking time of death", visible = True, enable_events = True)
         ],
@@ -235,8 +233,10 @@ def make_window():
             sg.Input(key="proc-overlap",default_text="0.8",size=(4,1),visible=False)
         ],
         [
-            sg.Text("Skip videos", key = "skip_vid_text",visible = False),
-            sg.Combo(["1","5","10","25"],default_value = "1", key = "VidCount",tooltip="Create 1 labelled video for each X original videos",visible = False)
+            sg.Text("Skip videos", key = "skip_vid_text",visible = False,tooltip="Create 1 labelled video for each X original videos"),
+            sg.Combo(["1","5","10","25"],default_value = "1", key = "VidCount",tooltip="Create 1 labelled video for each X original videos",visible = False),
+            sg.Text("Circle Crop Interval",key="circle_int_text",visible = False,tooltip="The number of frames between adjusting the center of the cropped circle (Default 200)"),
+            sg.Input(key="crop-value",default_text = "200",size=(4,1),visible = False)
         ],
         [
             sg.Button("Go", key = "-SELECT_GO-"),
@@ -315,7 +315,9 @@ while True:
         vids = values["-CHECK_VIDS-"]
         vid_count = values["VidCount"]
         move_vids = values["-CHECK_MOVE-"]
-        if not start_running(downsample,tod,vids,input_folder,output_folder,cfg_file,weight_file,vid_count,move_vids):
+        circle_crop = values["-CHECK_CIRCLES-"]
+        circle_val = values["crop-value"]
+        if not start_running(downsample,tod,vids,input_folder,output_folder,cfg_file,weight_file,vid_count,move_vids,circle_crop,circle_val):
             window["Error_Message"].update(value="Invalid Files",background_color="DarkRed",visible=True)
         else:
             window["Error_Message"].update(visible=False)
@@ -345,6 +347,15 @@ while True:
             window["skip_vid_text"].update(visible = False)
             window["VidCount"].update(visible = False)
             window["VidCount"].update(value = "1")
+    elif event == "-CHECK_CIRCLES-":
+        circs = values["-CHECK_CIRCLES-"]
+        if circs:
+            window["circle_int_text"].update(visible = True)
+            window["crop-value"].update(visible = True)
+        else:
+            window["circle_int_text"].update(visible = False)
+            window["crop-value"].update(visible = False)
+            window["crop-value"].update(value = "200")
 
     elif event == "theme-options":
         print(values["theme-options"])
