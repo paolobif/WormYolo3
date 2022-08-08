@@ -11,9 +11,7 @@ from sklearn.model_selection import validation_curve
 
 # Just count how many of the expected number of files there currently are
 
-# Possible TODO: Just process YOLO output, rather than run YOLO, such as add checkbox for YOLO
-
-# TODO: Add circle exclusion (check Paolo-dev in procYOLOnu)
+# TODO: Screenshots of GUI
 
 # TODO: Add SFW easter eggs! :)
 

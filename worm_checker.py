@@ -160,7 +160,7 @@ def check_width(width):
   else:
     return True
 
-AREA_CONSTANT = 120
+AREA_CONSTANT = 100
 def check_area(area):
   """
   Checks whether the area is within reasonable bounds
