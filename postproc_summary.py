@@ -1,4 +1,4 @@
-import re
+import sys
 import csv
 import numpy as np
 import convert_image as ci
@@ -108,7 +108,11 @@ def getValuesFrom(day,header,cur_data):
   # TODO: Threshold of change (<2.5?)
   total_travel = calcTravel(cur_data[x1_head],cur_data[y1_head],cur_data[x2_head],cur_data[y2_head])
 
-  travel_speed = total_travel / (cur_data[0][-1] - cur_data[0][0])
+  try:
+    travel_speed = total_travel / (cur_data[0][-1] - cur_data[0][0])
+    #print(travel_speed)
+  except:
+    travel_speed = np.nan
 
   # TODO: Traja... stuff?
   x_arr = []

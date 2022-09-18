@@ -317,7 +317,9 @@ def train(discriminator, generator, gan, data, n_epochs = 50, n_batch = 1, n_pat
 
 def generate_single_sdf(img_matrix):
   x, y, channels = img_matrix.shape
+
   img_matrix = np.array([cv2.resize(img_matrix,(256,256))])
+
   #print(img_matrix.shape)
   sdf_matrix = sdf_generator.predict(img_matrix,verbose = 0)[0]
   sdf_matrix = np.mean(sdf_matrix, axis = -1)

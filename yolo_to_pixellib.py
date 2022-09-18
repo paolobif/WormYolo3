@@ -154,7 +154,7 @@ def createAnnotatedFolders(folder_path):
   for file in all_files:
     #"""
     i+=1
-    print(i,"started out of",total_length)
+    #print(i,"started out of",total_length)
     if os.path.isdir(folder_path+"/"+file) and file.split("_")[0]!=DATA_PATH:
       first_input = "1"
       second_input = folder_path+"/"+file
