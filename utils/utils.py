@@ -566,6 +566,7 @@ def non_max_suppression(prediction, conf_thres=0.1, iou_thres=0.6, multi_label=T
 
     return output
 
+
 def non_max_suppression_post(outputs, overlapThresh):
     # if there are no boxes, return an empty list
     fullOutputs = []
@@ -580,7 +581,7 @@ def non_max_suppression_post(outputs, overlapThresh):
     # this is important since we'll be doing a bunch of divisions
     if boxes.dtype.kind == "i":
         boxes = boxes.astype("float")
-    # initialize the list of picked indexes	
+    # initialize the list of picked indexes
     pick = []
     # grab the coordinates of the bounding boxes
     x1 = boxes[:,0]
@@ -618,6 +619,7 @@ def non_max_suppression_post(outputs, overlapThresh):
     # integer data type
     #print(time.time()-t)
     return boxes[pick].astype("int")
+
 
 def get_yolo_layers(model):
     bool_vec = [x['type'] == 'yolo' for x in model.module_defs]

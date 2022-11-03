@@ -1,0 +1,21 @@
+version: "3.8"
+services:
+  nn:
+    # image: nn_api
+    build: ./
+    # command: python -c "import torch; print(torch.cuda.is_available())"
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            device_ids: ['0']
+            capabilities: [gpu]
+    # ports:
+    #   - 5000:5000
+    volumes:
+      - ./data/:/app/data
+      - ./weights:/app/weights
+
+    command: python3 vid_annotater_bulk.py data/vids data/results
