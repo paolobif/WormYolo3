@@ -4,7 +4,6 @@ from ctypes import Array
 from typing import Tuple
 
 from numpy.core.multiarray import array
-from sqlalchemy import false
 
 from models import *
 from utils.utils import *

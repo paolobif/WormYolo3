@@ -34,8 +34,7 @@ DEBUG=False
 
 cur_dir = os.path.split(__file__)[0]
 
-def run_sequential_files(do_downsample:bool, do_tod:bool, do_vid:bool, input_folder:str, output_folder:str,cfg_file:str,model_file:str,proc_threshold:int,proc_move:int,proc_overlap:float,vid_count:int,move_vids:bool,do_circle:bool,circle_interval:int):
-
+def run_sequential_files(do_downsample:bool, do_tod:bool, do_vid:bool, input_folder:str, output_folder:str,cfg_file:str,model_file:str,proc_threshold:int,proc_move:int,proc_overlap:float,vid_count:int,move_vids:bool,do_circle:bool,circle_interval:int, do_yolo:bool, yolo_path):
   count = 0
   for file in os.listdir(input_folder):
     try:
@@ -43,7 +42,7 @@ def run_sequential_files(do_downsample:bool, do_tod:bool, do_vid:bool, input_fol
       cur_in = input_folder
       file_id = file[0:-4]
       (file_id+"!")
-      if do_downsample:
+      if do_downsample and do_yolo:
         cur_out = os.path.join(output_folder,"reduced-frame-healthspan")
         if not os.path.exists(cur_out):
           os.mkdir(cur_out)
@@ -53,12 +52,15 @@ def run_sequential_files(do_downsample:bool, do_tod:bool, do_vid:bool, input_fol
         cur_in = cur_out
 
       # Run YOLO
-      cur_in_file = os.path.join(cur_in,file_id+".avi")
-      print(cur_in_file)
-      cur_out = os.path.join(output_folder,"yolo")
-      if not os.path.exists(cur_out):
-        os.mkdir(cur_out)
-      vab.runYOLOonOne(model_file,cfg_file,cur_in_file,cur_out,do_circle,circle_interval)
+      if do_yolo:
+        cur_in_file = os.path.join(cur_in,file_id+".avi")
+        print(cur_in_file)
+        cur_out = os.path.join(output_folder,"yolo")
+        if not os.path.exists(cur_out):
+          os.mkdir(cur_out)
+        vab.runYOLOonOne(model_file,cfg_file,cur_in_file,cur_out,do_circle,circle_interval)
+      else:
+        cur_out = yolo_path
 
       # Run Sort
       cur_in = cur_out
@@ -85,7 +87,7 @@ def run_sequential_files(do_downsample:bool, do_tod:bool, do_vid:bool, input_fol
         if not os.path.exists(cur_out):
           os.mkdir(cur_out)
 
-        if do_downsample:
+        if do_downsample and do_yolo:
           orig_video = os.path.join(os.path.join(output_folder,"reduced-frame-healthspan"),file)
         else:
           orig_video = os.path.join(input_folder,file)
@@ -208,5 +210,9 @@ if __name__ =="__main__":
   move_vids = sys.argv[12] == "True"
   do_circle = sys.argv[13] == "True"
   circle_val = int(sys.argv[14])
+  do_yolo = sys.argv[15] == "True"
+  print(do_yolo)
+  yolo_path = sys.argv[16]
+
   #run_all_files(dwnsmpl,tod,in_path,out,cfg_file,weight_file)
-  run_sequential_files(dwnsmpl,tod,vid,in_path,out,cfg_file,weight_file,proc_thresh,proc_move,proc_overlap,vid_count,move_vids,do_circle,circle_val)
+  run_sequential_files(dwnsmpl,tod,vid,in_path,out,cfg_file,weight_file,proc_thresh,proc_move,proc_overlap,vid_count,move_vids,do_circle,circle_val, do_yolo, yolo_path)

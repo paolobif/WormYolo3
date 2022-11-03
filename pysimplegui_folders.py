@@ -5,7 +5,10 @@ import subprocess
 import numpy as np
 import signal
 import shutil
+import download_ip
 
+# I hope nobody ever has to interpret this in the future. I'm sorry...
+# This is a patchwork that we kept shoving more stuff into
 
 from sklearn.model_selection import validation_curve
 
@@ -15,6 +18,20 @@ from sklearn.model_selection import validation_curve
 
 # TODO: Add SFW easter eggs! :)
 
+# TODO: Rename Healthspan to Daily Monitor
+
+# TODO: Fix bottom bar
+
+# TODO: Try to allow seperate parts
+# Second tab that takes input folder from YOLO/input videos/ output folder
+# All the little substeps
+# Skips YOLO analysis
+
+# TODO: Download Tab
+# Option for IP, timelapse vs. days
+
+# Make 4 or 5 download files keyed to worm-bots
+
 # Technically this isn't necessary, but it makes it more clear
 global cur_prog
 global max_prog
@@ -23,7 +40,10 @@ global is_runniing
 global out_directory
 global in_directory
 global window
-global current_process
+global current_process, download_proc
+global stored_weights
+global stored_model
+
 
 cur_prog=0
 max_prog=1
@@ -31,6 +51,7 @@ total_prog = 0
 number_of_functions = 0
 is_running = False
 current_process = None
+download_proc = None
 
 
 # TODO: Do a thing with this
@@ -125,9 +146,85 @@ def updateProg():
         total_prog = 0
     max_prog = len(os.listdir(in_directory))
 
-def start_running(do_downsample:bool,do_tod:bool,do_vids:bool,input_folder:str,output_folder:str,cfg_file:str,weight_file:str,vid_count:str,start_running:bool,do_circles:bool,circle_val:str):
+def download_run(values):
+
+    api_endpoint = values["WORMBOT"]
+    input_string = values["DLIST"]
+    save_path = values["DOWNLOAD_OUT"]
+
+    if not (os.path.exists(save_path)):
+        return False
+
+    window["DOWNLOAD_GO"].update(disabled = True)
+    window["DOWNLOAD_CANCEL"].update(disabled=False)
+    window.finalize()
+
+    run_proc = os.path.join(cur_dir,"download_ip.py")
+
+
+
+    download_days = str(values["Daily Monitor"])
+    first_day = values["FIRST_DAY"]
+    last_day = values["LAST_DAY"]
+    args = [py_path, run_proc,api_endpoint,input_string,save_path,download_days,first_day,last_day]
+    print(" ".join(args))
+    global download_proc
+    download_proc = subprocess.Popen(" ".join(args),shell=True)
+    return True
+
+def download_cancel():
+    global download_proc
+    if download_proc is None:
+        window["DOWNLOAD_ERROR"].update(value="Not Currently Running",background_color="DarkRed",visible=True)
+        return
+    log_file_path = os.path.join(cur_dir,"download_log.txt")
+    log_file = open(log_file_path,"r")
+    line_count = 0
+    err_files = ""
+    size = 1
+    for line in log_file:
+        if line_count == 0:
+            os.kill(int(line),signal.SIGTERM)
+        else:
+            err_files += line
+            size+=1
+        line_count+=1
+
+    #print(current_process.communicate())
+    download_proc.kill()
+    download_proc = None
+    window["DOWNLOAD_GO"].update(disabled=False)
+    window["DOWNLOAD_CANCEL"].update(disabled=True)
+    if err_files!="":
+        window["DOWNLOAD_ERROR"].update(value=err_files,background_color="DarkGreen",visible=True)
+        window["DOWNLOAD_ERROR"].set_size((70,size))
+
+    window.Finalize()
+
+def updateDownloadProg(values):
+    first_day = values["FIRST_DAY"]
+    last_day = values["LAST_DAY"]
+    do_days = values["Daily Monitor"]
+
+    vid_args = values["DLIST"]
+    num_vids = len(download_ip.parse_vids_arg(vid_args))
+    if do_days:
+        num_vids *= (int(last_day)-int(first_day))
+
+    cur_vids = len(os.listdir(values["DOWNLOAD_OUT"]))
+
+    window['download_progbar'].update_bar(int(cur_vids/num_vids*100))
+
+    if int(cur_vids/num_vids*100) >= 100:
+        download_cancel()
+
+
+
+def start_running(do_downsample:bool,do_tod:bool,do_vids:bool,input_folder:str,output_folder:str,cfg_file:str,weight_file:str,vid_count:str,start_running:bool,do_circles:bool,circle_val:str,yolo_folder:str):
     print(cfg_file,weight_file)
-    if not (os.path.exists(input_folder) and os.path.exists(output_folder) and os.path.exists(cfg_file) and os.path.exists(weight_file)):
+    if not (os.path.exists(input_folder) and os.path.exists(output_folder)):
+        return False
+    if (not (os.path.exists(cfg_file) and os.path.exists(weight_file))) and not (os.path.exists(yolo_folder)):
         return False
     #window["-SELECT_GO-"].disabled = True
     window["-SELECT_GO-"].update(disabled = True)
@@ -138,13 +235,21 @@ def start_running(do_downsample:bool,do_tod:bool,do_vids:bool,input_folder:str,o
     do_vids = str(do_vids)
     run_proc = os.path.join(cur_dir,"run_all_processes.py")
 
+
     # Get procYOLO args
     proc_yolo_args = [window["proc-thresh"].get(),window["proc-move"].get(),window["proc-overlap"].get()]
 
     more_args = [window["VidCount"].get(),str(start_running),str(do_circles),circle_val]
 
-    args = [py_path,run_proc,do_downsample,do_tod,do_vids,input_folder,output_folder,cfg_file,weight_file]+proc_yolo_args + more_args
+    do_yolo = str(not cfg_file == "NA"); yolo_folder = window["yolo_input"].get()
+
+    rep_yolo_args = [do_yolo, yolo_folder]
+
+    args = [py_path,run_proc,do_downsample,do_tod,do_vids,input_folder,output_folder,cfg_file,weight_file]+proc_yolo_args + more_args + rep_yolo_args
+    args.append("NA")
     print(" ".join(args))
+    print(args)
+    #print(args[-1])
     global current_process
     current_process = subprocess.Popen(" ".join(args),shell=True)
     #print(current_process.communicate())
@@ -194,18 +299,24 @@ def make_window():
     global layout, window
     layout = [
         [
-            sg.Text('Model', size=(6, 1),tooltip="The format of the model to be used in YOLO"),
-            sg.Input(key="model", default_text=default_weight, size=(64, 2)),
-            sg.FileBrowse(key="-FILEBROWSE-",initial_folder=model_folder,),
+            sg.Combo(["YOLO Processing","Reprocessing","Download"],default_value = "YOLO Processing",key="layout-options",tooltip = "Changes the mode of the GUI",enable_events=True),
         ],
         [
-            sg.Text('Weights', size=(6, 1),tooltip = "The trained weights to use in YOLO"),
+            sg.Text('Model', size=(6, 1),tooltip="The format of the model to be used in YOLO",key="model_label"),
+            sg.Input(key="model", default_text=default_weight, size=(64, 2)),
+            sg.FileBrowse(key="-FILEBROWSE-",initial_folder=model_folder),
+        ],
+        [
+            sg.Text('Weights', size=(6, 1),tooltip = "The trained weights to use in YOLO",key="weight_label"),
             sg.Input(key="weights", default_text=os.path.join(weights_folder,"416_1_4_full_best200ep.pt"), size=(64, 2)),
-            sg.FileBrowse(key="-WEIGHTSBROWSE-",initial_folder=weights_folder,),
+            sg.FileBrowse(key="-WEIGHTSBROWSE-",initial_folder=weights_folder),
 
+            sg.Text('YOLO Input', size=(6, 1),tooltip = "The trained weights to use in YOLO",key="yolo_label",visible = False),
+            sg.Input(key="yolo_input", default_text="NA", size=(64, 2), visible = False),
+            sg.FolderBrowse(key="yolo_browse", visible = False),
 
         ],
-        [sg.Text('Input', size=(6, 1),tooltip = "The folder of videos to be processed"),
+        [sg.Text('Video Input', size=(6, 1),tooltip = "The folder of videos to be processed"),
             sg.Input(key="-IN_FOLDER-", default_text="/media/mlcomp/DrugAge/gui_test/in_test", size=(64, 2)),
             sg.FolderBrowse(key="-IN_BROWSE-",initial_folder=INPUT_FOLDER,)
         ],
@@ -215,7 +326,7 @@ def make_window():
         ],
         [
         sg.Checkbox("Move Videos",key = "-CHECK_MOVE-",tooltip = "Move finished videos to the output folder to show they're done."),
-        sg.Checkbox("Healthspan",key="-CHECK_DOWNSAMPLE-",tooltip="Reduces the number of frames to be observed. Should only be used on long videos"),
+        sg.Checkbox("Daily Monitor",key="-CHECK_DOWNSAMPLE-",tooltip="Reduces the number of frames to be observed. Should only be used on long videos"),
         sg.Checkbox("Circle Crop", key = "-CHECK_CIRCLES-",tooltip = "Crops the video to only include the plate while running YOLO. May take longer but provide more accurate results.",enable_events= True),
         sg.Checkbox("Timelapse Analysis",key="-CHECK_TOD-",tooltip = "Determine time of death or paralysis",default = True,enable_events=True),
         sg.Checkbox("Create Videos",key = "-CHECK_VIDS-",tooltip = "Create videos of each worm with bounding boxes marking time of death", visible = True, enable_events = True)
@@ -251,9 +362,47 @@ def make_window():
         ],
         [
             sg.Combo(["LightGreen","LightRed"],default_value = "LightGreen",key="theme-options",tooltip = "Changes the color of the window",enable_events=True),
+        ],
+    ]
+
+    download_layout = [
+        [sg.Text('WormBot Address', size=(12, 1),tooltip="The IP of the wormbot"),
+            sg.Input(key="WORMBOT", default_text="128.95.23.15", size=(58, 2)),
+        ],
+        [sg.Text('Output', size=(6, 1),tooltip="The folder to output results"),
+            sg.Input(key="DOWNLOAD_OUT", default_text="/media/mlcomp/DrugAge/gui_test/out_test", size=(64, 2)),
+            sg.FolderBrowse(key="-DOWNLOAD_OUT-",initial_folder=OUTPUT_FOLDER,)
+        ],
+        [
+            sg.Checkbox("Daily Monitor",key="Daily Monitor",enable_events=True),
+            sg.Text('First Day', size=(6, 1),tooltip="The day to start downloading", visible = False),
+            sg.Input(key="FIRST_DAY", default_text="3", size=(2, 1),visible = False),
+            sg.Text('Last Day', size=(6, 1),tooltip="The final day to download", visible = False),
+            sg.Input(key="LAST_DAY", default_text="20", size=(2, 1), visible = False),
+        ],
+        [sg.Text("Download List: ",tooltip = "Which videos to download. In the form of 2:5 for videos 2-5 and 3,5,7 to only download those videos. Can be combined, i.e., 2:5,7:8 to download 2-8 but not 6"),
+         sg.Input(key = "DLIST", default_text = "2:5,3:6", size = (58, 2))
+        ],
+        [
+            sg.Button("Go", key = "DOWNLOAD_GO"),
+            sg.Button("Cancel", key="DOWNLOAD_CANCEL"),
+        ],
+        [
+            sg.ProgressBar(100,orientation='h', size=(20,20),key="download_progbar",border_width=4,bar_color=['Red','Green'])
+        ],
+        [
+            sg.Text(text="Test Error",key="DOWNLOAD_ERROR",size=(70,1),text_color="Red",background_color="DarkRed", visible=False)
         ]
     ]
-    window = sg.Window("YOLO Manager", layout)
+
+    tabs = [[sg.TabGroup([[
+        sg.Tab("Processing",layout=layout),
+        sg.Tab("Download",layout = download_layout)
+    ]
+
+    ])]]
+
+    window = sg.Window("YOLO Manager", tabs)
 make_window()
 
 start = t.time()
@@ -315,7 +464,9 @@ while True:
         move_vids = values["-CHECK_MOVE-"]
         circle_crop = values["-CHECK_CIRCLES-"]
         circle_val = values["crop-value"]
-        if not start_running(downsample,tod,vids,input_folder,output_folder,cfg_file,weight_file,vid_count,move_vids,circle_crop,circle_val):
+        yolo_path = values["yolo_input"]
+        print(downsample, cfg_file)
+        if not start_running(downsample,tod,vids,input_folder,output_folder,cfg_file,weight_file,vid_count,move_vids,circle_crop,circle_val,yolo_path):
             window["Error_Message"].update(value="Invalid Files",background_color="DarkRed",visible=True)
         else:
             window["Error_Message"].update(visible=False)
@@ -364,9 +515,52 @@ while True:
 
         window.close()
         make_window()
+    elif event == "layout-options":
+        if values["layout-options"] != "YOLO Processing":
+            stored_models = values["model"]
+            stored_weights = values["weights"]
+            window["model"].update(value="NA")
+            window["weights"].update(value="NA")
+            window["model"].update(visible = False)
+            window["weights"].update(visible = False)
+            window["model_label"].update(visible = False)
+            window["weight_label"].update(visible = False)
+            window["-WEIGHTSBROWSE-"].update(visible = False)
+            window["-FILEBROWSE-"].update(visible = False)
+            window["yolo_label"].update(visible = True)
+            window["yolo_input"].update(visible = True)
+            window["yolo_browse"].update(visible = True)
+
+        else:
+            window["model"].update(value=stored_models)
+            window["weights"].update(value=stored_weights)
+            window["yolo_label"].update(visible = False)
+            window["yolo_input"].update(visible = False)
+            window["yolo_browse"].update(visible = False)
+        if values["layout-options"] == "YOLO Processing":
+            window["model_label"].update(visible = True)
+            window["weight_label"].update(visible = True)
+            window["model"].update(visible = True)
+            window["weights"].update(visible = True)
+            window["-WEIGHTSBROWSE-"].update(visible = True)
+            window["-FILEBROWSE-"].update(visible = True)
+
+    elif event == "Daily Monitor":
+        if values["Daily Monitor"]:
+            window["FIRST_DAY"].update(visible = True)
+            window["LAST_DAY"].update(visible = True)
+        else:
+            window["FIRST_DAY"].update(visible = False)
+            window["LAST_DAY"].update(visible = False)
+    elif event == "DOWNLOAD_GO":
+        download_run(values)
+    elif event == "DOWNLOAD_CANCEL":
+        download_cancel()
 
     if not current_process is None:
         updateProg()
         #print(cur_prog,number_of_functions,total_prog,max_prog)
         window['progbar'].update_bar(int(cur_prog/number_of_functions*100))
         window["total_progbar"].update_bar(int(total_prog/max_prog*100))
+    if not download_proc is None:
+        updateDownloadProg(values)
