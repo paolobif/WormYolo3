@@ -62,9 +62,9 @@ file_path = os.path.abspath(__file__)
 cur_dir = os.path.split(file_path)[0]
 print('test',cur_dir,__file__)
 
-py_path = shutil.which("python")
+py_path = shutil.which("python3")
 if py_path is None:
-    py_path = shutil.which("python3")
+    py_path = shutil.which("python")
 
 
 def get_folder(in_path):
