@@ -115,7 +115,9 @@ def download_video_day(video_name: str, save: str, endpoint: str = api_endpoint,
     file_name = os.path.join(save, str(video_name) +"_day"+str(i) + ".avi")
     with open(file_name, "wb") as file:
       file.write(video_file.content)
+      log_file = open(os.path.join(cur_dir,"download_log.txt"),"a")
       log_file.write(f"{video_name}\n")
+      log_file.close()
 
   return True
   # print(f"Downlaoded experiment {video_name}")
