@@ -291,6 +291,7 @@ def gen_real_images(dataset, n_samples, patch_shape):
   orig_exs = orig_imgs[indices]
   pred_exs = pred_imgs[indices]
   expctd_output = np.ones((n_samples,patch_shape,patch_shape,1))
+  print(orig_exs.shape,pred_exs.shape,expctd_output.shape)
   return [orig_exs, pred_exs], expctd_output
 
 def gen_fake_images(generator, samples, patch_shape):
