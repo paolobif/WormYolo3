@@ -1,0 +1,5 @@
+17748
+0000000000 - Copy.txt
+[Errno 2] No such file or directory: 'C:/Users/cdkte/Downloads/out_test\\yolo\\0000000000 - Copy.csv'
+0000000000.txt
+[Errno 2] No such file or directory: 'C:/Users/cdkte/Downloads/out_test\\yolo\\0000000000.csv'
