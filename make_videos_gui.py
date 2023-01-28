@@ -45,7 +45,7 @@ layout = [
   ],
 ]
 
-window = sg.Window("Extract Behavior Manager", layout)
+window = sg.Window("Extract Behavior Manager", layout, background_color = "Snow")
 
 while True:
     event, values = window.read(timeout=100)
