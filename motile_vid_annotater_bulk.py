@@ -20,7 +20,7 @@ class YoloToCSV():
         #self.img_path = img_path
         self.img = frame
         self.img_path = frame_count
-        
+
     def get_annotations(self):
         # pass through img processor. Image and cut size.
         img_size = 416
@@ -77,7 +77,7 @@ class YoloToCSV():
         track_bbs_ids = mot_tracker1.update(boxes_xyxy)
         return(track_bbs_ids)
 
-    
+
     def pd_for_sort_output(self, outputs, img_name = "name"):
         csv_outputs = []
         for worm in outputs:
@@ -87,7 +87,7 @@ class YoloToCSV():
             x2 = worm[2]
             y2 = worm[3]
             name = worm[4]
-            csv_outputs.append([img_name, name, x1, y1 ,x2, y2]) 
+            csv_outputs.append([img_name, name, x1, y1 ,x2, y2])
         out_df = pd.DataFrame(csv_outputs)
         return out_df
 
@@ -106,7 +106,7 @@ if __name__ == "__main__":
     #VID_FOLD_PATH_DIR = os.listdir(VID_FOLD_PATH_DIR)
     vid_fold =  os.listdir(VID_FOLD_PATH_DIR)
     print(vid_fold)
-   
+
     for fold_name in vid_fold:
         VID_FOLD_PATH = os.path.join(VID_FOLD_PATH_DIR, fold_name)
         OUT_FOLD_PATH = VID_FOLD_PATH
@@ -120,7 +120,7 @@ if __name__ == "__main__":
             ## Declare settings for nn
             ## make sure to change these prarameters for your work enviroment
             settings = {'model_def': "cfg/yolov3-spp-1cls.cfg",
-                        'weights_path': "weights/416_1_4_full_best200ep.pt",
+                        'weights_path': "C:/Users/cdkte/Downloads/weights-20230322T172213Z-001/weights/best.pt",
                         'class_path': "cfg/classes.names",
                         'img_size': 608,
                         'iou_thres': 0.4,
@@ -128,7 +128,8 @@ if __name__ == "__main__":
                         'conf_thres': 0.1,
                         'batch_size': 6,
                         'augment': None,
-                        'classes': None}
+                        'classes': None,
+                        'version': 7}
 
             model = YoloModelLatest(settings)
 
@@ -144,7 +145,7 @@ if __name__ == "__main__":
             csv_out_path = f"{os.path.join(OUT_PATH, video_name)}_yolo.csv"
             out_video_path = f"{OUT_PATH}/{os.path.basename(VID_PATH).strip('.avi')}_yolo.avi"
 
-        
+
             while (1):
                 ret, frame = vid.read()
                 frame_count = vid.get(cv2.CAP_PROP_POS_FRAMES)
@@ -153,11 +154,11 @@ if __name__ == "__main__":
                     print(height, width)
                     fourcc = cv2.VideoWriter_fourcc(*"MJPG")
                     writer = cv2.VideoWriter(out_video_path, fourcc, 10, (width, height), True)
-                if frame_count % 30 == 0:    
+                if frame_count % 30 == 0:
                     ToCSV = YoloToCSV(model, frame, frame_count)
                     ToCSV.write_to_csv(csv_out_path)
                     img_out_path =  f"{os.path.join(OUT_PATH, video_name)}_{frame_count}.png"
                     ToCSV.draw_on_im(out_video_path,writer)
                 if frame_count == total_frame_count:
                     break
-            writer.release()        
+            writer.release()

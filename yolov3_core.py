@@ -21,6 +21,7 @@ from torchvision import datasets
 from torch.autograd import Variable
 import torchvision.transforms.functional as TF
 
+from yolov7.models.experimental import attempt_load
 
 ## settings is a dictionary with model parameters
 class YoloModelLatest():
@@ -36,6 +37,10 @@ class YoloModelLatest():
         self.batch_size = settings['batch_size']
         self.augment = settings['augment']
         self.classes = settings['classes']
+        if "version" in settings:
+            self.version = settings["version"]
+        else:
+            self.version = 3
 
         self.cfg = check_file(self.model_def)
         self.names = check_file(self.class_path)
@@ -45,15 +50,19 @@ class YoloModelLatest():
         #LOAD gpu
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         #DEFIN MODEL
-        model = Darknet(self.cfg, self.img_size)
+        if self.version == 3:
+            model = Darknet(self.cfg, self.img_size)
 
-        # Load weights
-        weights = self.weights_path
-        if weights.endswith('.pt'):  # pytorch format
-            model.load_state_dict(torch.load(weights, map_location=device)['model'], strict=False)
-        else:  # darknet format
-            print("Error: Not valid weights type.")
 
+            # Load weights
+            weights = self.weights_path
+            if weights.endswith('.pt'):  # pytorch format
+                model.load_state_dict(torch.load(weights, map_location=device)['model'], strict=False)
+            else:  # darknet format
+                print("Error: Not valid weights type.")
+
+        elif self.version == 7:
+            model = attempt_load(self.weights_path, map_location = device)
 
         # SET UP MODEL FOR TESTING
         model.to(device).eval()
@@ -121,7 +130,14 @@ class YoloModelLatest():
                 #unique_labels = detections[:, -1].cpu().unique()
                 #n_cls_preds = len(unique_labels)
                 #change to: for output in detection:
-                for x1, y1, x2, y2, conf, cls_conf in detections:
+
+                for dect in detections:
+                    if len(dect) > 4:
+                        x1, y1, x2, y2, conf, cls_conf = dect
+                    else:
+                        x1, y1, x2, y2 = dect
+                        conf = None
+                        cls_conf = None
                     raw_output = (x1, y1, x2, y2, conf, cls_conf)
                     output = self.rescale_bboxes(key, raw_output)
                     outputs.append(output)
@@ -136,7 +152,12 @@ class YoloModelLatest():
         on the full image. Returns translated cords in output list """
         # output is [(key), detection]
         mapX, mapY = key
-        x1, y1, x2, y2, conf, cls_conf = output
+        if len(output) > 4:
+                x1, y1, x2, y2, conf, cls_conf = output
+        else:
+                x1, y1, x2, y2 = output
+                conf = None
+                cls_conf = None
 
         ax1, ax2 = x1 + mapX, x2 + mapX
         ay1, ay2 = y1 + mapY, y2 + mapY
@@ -339,7 +360,12 @@ def outputs_to_centroid_dict(outputs):
     centroids = {}
     for output in outputs:
         output = [float(n) for n in output]
-        x1, y1, x2, y2, conf, cls_conf = output
+        if len(output) > 4:
+                x1, y1, x2, y2, conf, cls_conf = output
+        else:
+                x1, y1, x2, y2 = output
+                conf = None
+                cls_conf = None
         w = (x2 - x1) / 2
         h = (y2 - y1) / 2
         center = ((x1 + w), (y2 + h))
@@ -383,7 +409,12 @@ def draw_from_output(img, outputs, col=(255,255,0), text=None):
     Returns the image with all the boudning boxes drawn on the img """
     for output in outputs:
         output = [int(n) for n in output]
-        x1, y1, x2, y2, conf, cls_conf = output
+        if len(output) > 4:
+                x1, y1, x2, y2, conf, cls_conf = output
+        else:
+                x1, y1, x2, y2 = output
+                conf = None
+                cls_conf = None
         cv2.rectangle(img, (x1,y1), (x2,y2), col, 2)
         if text is not None:
             cv2.putText(img, text, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, col, 2)
